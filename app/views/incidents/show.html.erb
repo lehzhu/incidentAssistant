@@ -75,6 +75,24 @@
   </div>
   
   <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header">
+        <h6 class="card-title mb-0">
+          <i class="bi bi-chat-left-text me-2"></i>
+          Live Transcript
+          <span class="badge bg-secondary ms-2" id="transcript-count">0</span>
+        </h6>
+      </div>
+      <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+        <div id="transcript-container">
+          <div class="text-center py-3 text-muted" id="transcript-placeholder">
+            <i class="bi bi-mic-mute"></i>
+            <p class="small mb-0">Transcript will appear here during replay</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <div class="card">
       <div class="card-header">
         <h6 class="card-title mb-0">
@@ -149,12 +167,50 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const startBtn = document.getElementById('start-replay-btn');
+  const transcriptContainer = document.getElementById('transcript-container');
+  const transcriptCount = document.getElementById('transcript-count');
+  const suggestionsContainer = document.getElementById('suggestions-container');
+  const suggestionCount = document.getElementById('suggestion-count');
   
+  function addTranscriptMessage(message) {
+    const placeholder = document.getElementById('transcript-placeholder');
+    if (placeholder) {
+      placeholder.remove();
+    }
+    
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('mb-2', 'small');
+    messageElement.innerHTML = `<strong>${message.speaker}:</strong> ${message.text}`;
+    transcriptContainer.appendChild(messageElement);
+    transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+    transcriptCount.textContent = parseInt(transcriptCount.textContent) + 1;
+  }
+
+  function addInsight(insight) {
+    const noSuggestions = document.getElementById('no-suggestions');
+    if (noSuggestions) {
+      noSuggestions.remove();
+    }
+    
+    const insightElement = document.createElement('div');
+    insightElement.classList.add('card', 'mb-3', 'border-primary');
+    insightElement.innerHTML = `
+      <div class="card-body">
+        <h6 class="card-title text-primary">${insight.title}</h6>
+        <p class="card-text small">${insight.content}</p>
+        ${insight.action_items ? '<ul class="small">' + insight.action_items.map(item => `<li>${item}</li>`).join('') + '</ul>' : ''}
+        <small class="text-muted">Confidence: ${Math.round(insight.confidence * 100)}%</small>
+      </div>
+    `;
+    suggestionsContainer.appendChild(insightElement);
+    suggestionCount.textContent = parseInt(suggestionCount.textContent) + 1;
+  }
+
   if (startBtn) {
     startBtn.addEventListener('click', function() {
       startBtn.disabled = true;
       startBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Starting...';
-      
+
       fetch(`/incidents/<%= @incident.id %>/start_replay`, {
         method: 'POST',
         headers: {
@@ -168,6 +224,27 @@ document.addEventListener('DOMContentLoaded', function() {
           startBtn.innerHTML = '<i class="bi bi-check me-1"></i>Replay Started';
           startBtn.classList.remove('btn-primary');
           startBtn.classList.add('btn-success');
+
+          // Connect to ActionCable
+          import('@rails/actioncable').then(module => {
+            const ActionCable = module.default;
+            const cable = ActionCable.createConsumer();
+            cable.subscriptions.create({ channel: "SuggestionsChannel", incident_id: <%= @incident.id %> }, {
+              received(data) {
+                console.log('Received data:', data);
+                if (data.type === 'transcript_message') {
+                  addTranscriptMessage(data.data);
+                } else if (data.type === 'ai_insight') {
+                  addInsight(data.data.insight);
+                } else if (data.type === 'replay_complete') {
+                  startBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Complete';
+                  startBtn.classList.remove('btn-success');
+                  startBtn.classList.add('btn-outline-success');
+                }
+              }
+            });
+          });
+
         } else {
           startBtn.disabled = false;
           startBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Start Replay';
@@ -182,14 +259,14 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
   }
-  
+
   // Filter functionality
   const filterInputs = document.querySelectorAll('input[name="filter"]');
   filterInputs.forEach(input => {
     input.addEventListener('change', function() {
       const filterValue = this.id;
       const suggestions = document.querySelectorAll('.suggestion-card');
-      
+
       suggestions.forEach(suggestion => {
         if (filterValue === 'all' || suggestion.dataset.category === filterValue) {
           suggestion.style.display = 'block';

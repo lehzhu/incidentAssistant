@@ -1,5 +1,6 @@
 class IncidentsController < ApplicationController
   before_action :set_incident, only: [:show, :start_replay]
+  skip_before_action :verify_authenticity_token, only: [:start_replay]
   
   def index
     @incidents = Incident.all.order(created_at: :desc)
@@ -28,8 +29,8 @@ class IncidentsController < ApplicationController
   
   def start_replay
     if @incident.active?
-      IncidentReplayJob.perform_later(@incident.id)
-      render json: { message: 'Incident replay started! Watch for AI suggestions.' }
+      StreamTranscriptJob.perform_async(@incident.id)
+      render json: { message: 'Transcript replay started! Watch for AI insights.' }
     else
       render json: { error: 'Incident has already been processed.' }
     end
