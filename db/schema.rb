@@ -10,14 +10,14 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_01_10_000003) do
+ActiveRecord::Schema[7.2].define(version: 2025_07_08_071447) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
   create_table "incidents", force: :cascade do |t|
     t.string "title", null: false
     t.text "description"
-    t.string "status", default: "active"
+    t.integer "status", default: 0
     t.text "transcript_data"
     t.integer "total_messages", default: 0
     t.integer "processed_messages", default: 0
