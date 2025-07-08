@@ -1,0 +1,83 @@
+<!-- app/views/incidents/show.html.erb -->
+<div class="row g-4">
+  <!-- Incident Details & Transcript -->
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+        <div>
+          <h4 class="mb-1"><%= @incident.title %></h4>
+          <p class="text-muted mb-0"><%= @incident.description %></p>
+        </div>
+        
+        <div class="d-flex align-items-center gap-3">
+          <span class="badge <%= @incident.active? ? 'bg-primary' : 'bg-success' %> fs-6">
+            <i class="bi bi-<%= @incident.active? ? 'play-circle' : 'check-circle' %> me-1"></i>
+            <%= @incident.status.humanize %>
+          </span>
+          
+          <% if @incident.active? %>
+            <%= link_to start_replay_incident_path(@incident), 
+                method: :post, 
+                class: "btn btn-success",
+                data: { 
+                  confirm: "Start processing #{@incident.total_messages} messages? This will take about 1 minute.",
+                  disable_with: "Starting..." 
+                } do %>
+              <i class="bi bi-play-fill me-1"></i> Start Replay
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+      
+      <div class="card-body">
+        <h6 class="text-muted mb-3">
+          <i class="bi bi-chat-text me-1"></i> 
+          Recent Transcript (<%= @recent_messages.count %> of <%= @incident.total_messages %> messages)
+        </h6>
+        
+        <div class="transcript-container border rounded-3 p-3 bg-light" style="height: 450px; overflow-y: auto;">
+          <% @recent_messages.each do |message| %>
+            <div class="transcript-message mb-2 p-2 bg-white rounded shadow-sm">
+              <strong class="text-primary"><%= message.speaker %>:</strong>
+              <span class="ms-2"><%= message.content %></span>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- AI Suggestions Panel -->
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+        <h5 class="mb-0">
+          <i class="bi bi-lightbulb me-2 text-warning"></i>
+          AI Suggestions
+        </h5>
+        <span class="badge bg-secondary" id="suggestion-count"><%= @suggestions.count %></span>
+      </div>
+      
+      <div class="card-body p-0">
+        <!-- Suggestions Container -->
+        <div id="suggestions-container" 
+             class="suggestions-scroll" 
+             style="max-height: 500px; overflow-y: auto;"
+             data-controller="suggestions"
+             data-suggestions-incident-id-value="<%= @incident.id %>">
+          
+          <% if @suggestions.any? %>
+            <% @suggestions.each do |suggestion| %>
+              <%= render 'suggestion_card', suggestion: suggestion %>
+            <% end %>
+          <% else %>
+            <div class="text-center text-muted py-5" id="no-suggestions">
+              <i class="bi bi-lightbulb display-4 text-muted"></i>
+              <p class="mt-2">AI suggestions will appear here during replay</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

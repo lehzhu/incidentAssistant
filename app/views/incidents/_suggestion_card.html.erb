@@ -1,0 +1,48 @@
+<!-- app/views/incidents/_suggestion_card.html.erb -->
+<%
+  category_configs = {
+    'action_item' => { color: 'primary', icon: 'check-square' },
+    'timeline_event' => { color: 'success', icon: 'clock-history' },
+    'root_cause' => { color: 'warning', icon: 'search' },
+    'missing_info' => { color: 'info', icon: 'info-circle' }
+  }
+  
+  config = category_configs[suggestion.category] || { color: 'secondary', icon: 'question' }
+%>
+
+<div class="suggestion-card border-start border-<%= config[:color] %> border-3 bg-white m-3 p-3 rounded shadow-sm" 
+     id="suggestion-<%= suggestion.id %>"
+     data-suggestion-id="<%= suggestion.id %>">
+  
+  <div class="d-flex justify-content-between align-items-start mb-2">
+    <span class="badge bg-<%= config[:color] %> bg-opacity-10 text-<%= config[:color] %> border border-<%= config[:color] %>">
+      <i class="bi bi-<%= config[:icon] %> me-1"></i>
+      <%= suggestion.category.humanize %>
+    </span>
+    
+    <% if suggestion.pending? %>
+      <div class="btn-group btn-group-sm" role="group">
+        <button type="button" 
+                class="btn btn-outline-success btn-sm"
+                onclick="updateSuggestion(<%= suggestion.id %>, 'accepted')"
+                title="Accept suggestion">
+          <i class="bi bi-check"></i>
+        </button>
+        <button type="button" 
+                class="btn btn-outline-danger btn-sm"
+                onclick="updateSuggestion(<%= suggestion.id %>, 'dismissed')"
+                title="Dismiss suggestion">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+    <% else %>
+      <span class="badge bg-<%= suggestion.accepted? ? 'success' : 'secondary' %>">
+        <i class="bi bi-<%= suggestion.accepted? ? 'check' : 'x' %> me-1"></i>
+        <%= suggestion.status.upcase %>
+      </span>
+    <% end %>
+  </div>
+  
+  <h6 class="fw-bold mb-2 text-dark"><%= suggestion.title %></h6>
+  <p class="text-muted small mb-0 lh-sm"><%= suggestion.description %></p>
+</div>
