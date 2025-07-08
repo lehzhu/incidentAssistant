@@ -83,6 +83,7 @@ export default class extends Controller {
       <div class="suggestion-card border-start border-${config.color} border-3 bg-white m-3 p-3 rounded shadow-sm" 
            id="suggestion-${suggestion.id}"
            data-suggestion-id="${suggestion.id}"
+           data-category="${suggestion.category}"
            style="opacity: 0; transform: translateY(-20px);">
         
         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -109,6 +110,15 @@ export default class extends Controller {
         
         <h6 class="fw-bold mb-2 text-dark">${suggestion.title}</h6>
         <p class="text-muted small mb-0 lh-sm">${suggestion.description}</p>
+        
+        ${suggestion.confidence_score ? `
+          <div class="mt-2">
+            <small class="text-muted">
+              <i class="bi bi-speedometer me-1"></i>
+              Confidence: ${suggestion.confidence_score}%
+            </small>
+          </div>
+        ` : ''}
       </div>
     `
   }

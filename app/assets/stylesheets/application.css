@@ -14,78 +14,56 @@
  *= require_self
  */
 
-/* Transcript styling */
-.transcript-container {
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
+/* Custom styles for the Incident Assistant app */
 
-.transcript-message {
-  transition: all 0.2s ease;
-}
-
-.transcript-message:hover {
-  background-color: #f8f9fa !important;
-  border-left: 3px solid #007bff;
-}
-
-/* Suggestion cards */
 .suggestion-card {
   transition: all 0.3s ease;
-  position: relative;
 }
 
 .suggestion-card:hover {
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1) !important;
   transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
 }
 
-/* Smooth scrolling for suggestions */
-.suggestions-scroll {
-  scroll-behavior: smooth;
+.progress {
+  animation: pulse 2s infinite;
 }
 
-/* Loading animations */
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
 }
 
-.loading {
-  animation: pulse 1.5s infinite;
-}
-
-/* Badge improvements */
 .badge {
-  font-weight: 500;
-  letter-spacing: 0.025em;
+  font-size: 0.75em;
 }
 
-/* Button hover effects */
-.btn {
-  transition: all 0.2s ease;
+.list-group-item {
+  border-left: none;
+  border-right: none;
 }
 
-.btn:hover {
-  transform: translateY(-1px);
+.list-group-item:first-child {
+  border-top: none;
 }
 
-/* Custom scrollbar for transcript */
-.transcript-container::-webkit-scrollbar {
-  width: 6px;
+.list-group-item:last-child {
+  border-bottom: none;
 }
 
-.transcript-container::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
+/* Real-time animation for new suggestions */
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.transcript-container::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.transcript-container::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+.suggestion-card.new {
+  animation: slideInFromTop 0.4s ease-out;
 }

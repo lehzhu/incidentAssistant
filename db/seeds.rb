@@ -9,55 +9,74 @@ if Rails.env.development?
   Incident.destroy_all
 end
 
-# Check for transcript file
-transcript_file = Rails.root.join('transcript.json')
+# Sample transcript data for testing
+sample_transcript = [
+  {
+    "speaker" => "Alice",
+    "message" => "We're getting reports that the main API is down. Users can't log in."
+  },
+  {
+    "speaker" => "Bob", 
+    "message" => "I'm seeing 500 errors in the logs. Started about 10 minutes ago."
+  },
+  {
+    "speaker" => "Alice",
+    "message" => "What was the last deployment? Could this be related to the release we pushed this morning?"
+  },
+  {
+    "speaker" => "Charlie",
+    "message" => "The deployment was at 9 AM. This issue started around 9:15 AM, so it could be related."
+  },
+  {
+    "speaker" => "Bob",
+    "message" => "I need to check the database connections. The error mentions connection timeouts."
+  },
+  {
+    "speaker" => "Alice",
+    "message" => "We should roll back the deployment while we investigate the root cause."
+  },
+  {
+    "speaker" => "Dave",
+    "message" => "Customer support is getting flooded with complaints. What's our ETA for resolution?"
+  },
+  {
+    "speaker" => "Charlie",
+    "message" => "Working on the rollback now. Should take about 5 minutes to complete."
+  },
+  {
+    "speaker" => "Bob",
+    "message" => "Found the issue - new database migration is causing connection pool exhaustion."
+  },
+  {
+    "speaker" => "Alice",
+    "message" => "Rollback completed. API is responding normally now. We need to investigate the migration issue."
+  },
+  {
+    "speaker" => "Charlie",
+    "message" => "I'll create a post-mortem ticket to analyze what went wrong with the migration."
+  },
+  {
+    "speaker" => "Dave",
+    "message" => "Confirmed - customer reports are decreasing. Issue appears resolved."
+  }
+]
 
-unless File.exist?(transcript_file)
-  puts "❌ Transcript file not found!"
-  puts "📁 Please copy your transcript file to: #{transcript_file}"
-  puts "🔗 Original file: rootly_takehome_transcript_80_no_timestamps.json"
-  exit
-end
-
-begin
-  transcript_data = JSON.parse(File.read(transcript_file))
-rescue JSON::ParserError => e
-  puts "❌ Invalid JSON in transcript file: #{e.message}"
-  exit
-end
-
-# Validate transcript structure
-unless transcript_data['meeting_transcript'].is_a?(Array)
-  puts "❌ Invalid transcript format. Expected 'meeting_transcript' array."
-  exit
-end
-
-puts "📊 Creating incident from #{transcript_data['meeting_transcript'].length} messages..."
-
-# Create the incident
+# Create a sample incident
 incident = Incident.create!(
-  title: "Database Saturation - Web Tier Error Spike",
-  description: "High error rates and 502 responses caused by database performance issues following Deploy #341",
-  status: :active
+  title: "API Outage - Login Service Down",
+  description: "Main API experiencing 500 errors preventing user logins. Appears related to recent deployment.",
+  status: "active"
 )
 
-# Create transcript messages in sequential order
-transcript_data['meeting_transcript'].each_with_index do |message_data, index|
-  TranscriptMessage.create!(
-    incident: incident,
-    speaker: message_data['speaker'],
-    content: message_data['text'],
-    sequence_number: index
+# Create transcript messages
+sample_transcript.each_with_index do |message, index|
+  incident.transcript_messages.create!(
+    speaker: message["speaker"],
+    content: message["message"],
+    sequence_number: index + 1
   )
 end
 
-puts "✅ Successfully created incident: #{incident.title}"
-puts "📝 Messages: #{incident.transcript_messages.count}"
-puts "⏱️  Estimated replay time: #{(incident.total_messages * incident.processing_interval_seconds / 60).round(1)} minutes"
-puts ""
-puts "Next steps:"
-puts "   1. Start Redis: redis-server"
-puts "   2. Start Sidekiq: bundle exec sidekiq"
-puts "   3. Start Rails: rails server"
-puts "   4. Visit: http://localhost:3000/incidents/#{incident.id}"
-puts "   5. Click 'Start Replay' to begin AI analysis"
+puts "Created sample incident: #{incident.title}"
+puts "Transcript has #{sample_transcript.length} messages"
+puts "Visit http://localhost:3000/incidents/#{incident.id} to start replay"

@@ -1,69 +1,61 @@
 <!-- app/views/incidents/show.html.erb -->
-<div class="row g-4">
-  <!-- Incident Details & Transcript -->
+<div class="row">
   <div class="col-lg-8">
-    <div class="card shadow-sm">
-      <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
         <div>
-          <h4 class="mb-1"><%= @incident.title %></h4>
-          <p class="text-muted mb-0"><%= @incident.description %></p>
+          <h5 class="card-title mb-0"><%= @incident.title %></h5>
+          <% if @incident.description.present? %>
+            <small class="text-muted"><%= @incident.description %></small>
+          <% end %>
         </div>
-        
-        <div class="d-flex align-items-center gap-3">
-          <span class="badge <%= @incident.active? ? 'bg-primary' : 'bg-success' %> fs-6">
-            <i class="bi bi-<%= @incident.active? ? 'play-circle' : 'check-circle' %> me-1"></i>
-            <%= @incident.status.humanize %>
+        <div class="text-end">
+          <span class="badge bg-<%= @incident.status == 'resolved' ? 'success' : 'warning' %> mb-1">
+            <%= @incident.status&.humanize || 'Unknown' %>
           </span>
-          
-          <% if @incident.active? %>
-            <%= link_to start_replay_incident_path(@incident), 
-                method: :post, 
-                class: "btn btn-success",
-                data: { 
-                  confirm: "Start processing #{@incident.total_messages} messages? This will take about 1 minute.",
-                  disable_with: "Starting..." 
-                } do %>
-              <i class="bi bi-play-fill me-1"></i> Start Replay
-            <% end %>
+          <% unless @incident.resolved? %>
+            <button id="start-replay-btn" class="btn btn-primary btn-sm">
+              <i class="bi bi-play-fill me-1"></i>
+              Start Replay
+            </button>
           <% end %>
         </div>
       </div>
-      
       <div class="card-body">
-        <h6 class="text-muted mb-3">
-          <i class="bi bi-chat-text me-1"></i> 
-          Recent Transcript (<%= @recent_messages.count %> of <%= @incident.total_messages %> messages)
-        </h6>
-        
-        <div class="transcript-container border rounded-3 p-3 bg-light" style="height: 450px; overflow-y: auto;">
-          <% @recent_messages.each do |message| %>
-            <div class="transcript-message mb-2 p-2 bg-white rounded shadow-sm">
-              <strong class="text-primary"><%= message.speaker %>:</strong>
-              <span class="ms-2"><%= message.content %></span>
+        <% unless @incident.resolved? %>
+          <div class="progress mb-3" style="height: 8px;">
+            <div class="progress-bar" role="progressbar" style="width: <%= @progress %>%" id="progress-bar">
+              <%= @progress %>%
             </div>
-          <% end %>
+          </div>
+        <% end %>
+        
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="mb-0">
+            <i class="bi bi-lightbulb me-2"></i>
+            AI Suggestions
+            <span class="badge bg-primary ms-2" id="suggestion-count"><%= @suggestions.count %></span>
+          </h6>
+          <div class="btn-group btn-group-sm" role="group">
+            <input type="radio" class="btn-check" name="filter" id="all" checked>
+            <label class="btn btn-outline-secondary" for="all">All</label>
+            
+            <input type="radio" class="btn-check" name="filter" id="action_item">
+            <label class="btn btn-outline-primary" for="action_item">Actions</label>
+            
+            <input type="radio" class="btn-check" name="filter" id="timeline_event">
+            <label class="btn btn-outline-success" for="timeline_event">Timeline</label>
+            
+            <input type="radio" class="btn-check" name="filter" id="root_cause">
+            <label class="btn btn-outline-warning" for="root_cause">Root Cause</label>
+            
+            <input type="radio" class="btn-check" name="filter" id="missing_info">
+            <label class="btn btn-outline-info" for="missing_info">Missing Info</label>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
-  
-  <!-- AI Suggestions Panel -->
-  <div class="col-lg-4">
-    <div class="card shadow-sm">
-      <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-        <h5 class="mb-0">
-          <i class="bi bi-lightbulb me-2 text-warning"></i>
-          AI Suggestions
-        </h5>
-        <span class="badge bg-secondary" id="suggestion-count"><%= @suggestions.count %></span>
-      </div>
-      
-      <div class="card-body p-0">
-        <!-- Suggestions Container -->
+        
         <div id="suggestions-container" 
-             class="suggestions-scroll" 
-             style="max-height: 500px; overflow-y: auto;"
-             data-controller="suggestions"
+             data-controller="suggestions" 
              data-suggestions-incident-id-value="<%= @incident.id %>">
           
           <% if @suggestions.any? %>
@@ -71,13 +63,141 @@
               <%= render 'suggestion_card', suggestion: suggestion %>
             <% end %>
           <% else %>
-            <div class="text-center text-muted py-5" id="no-suggestions">
-              <i class="bi bi-lightbulb display-4 text-muted"></i>
-              <p class="mt-2">AI suggestions will appear here during replay</p>
+            <div id="no-suggestions" class="text-center py-5">
+              <i class="bi bi-robot display-1 text-muted"></i>
+              <h6 class="mt-3 text-muted">No suggestions yet</h6>
+              <p class="text-muted small">Start the replay to begin AI analysis of the incident transcript.</p>
             </div>
           <% end %>
         </div>
       </div>
     </div>
   </div>
+  
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">
+        <h6 class="card-title mb-0">
+          <i class="bi bi-info-circle me-2"></i>
+          Incident Details
+        </h6>
+      </div>
+      <div class="card-body">
+        <dl class="row small">
+          <dt class="col-sm-5">Status:</dt>
+          <dd class="col-sm-7">
+            <span class="badge bg-<%= @incident.status == 'resolved' ? 'success' : 'warning' %>">
+              <%= @incident.status&.humanize || 'Unknown' %>
+            </span>
+          </dd>
+          
+          <dt class="col-sm-5">Created:</dt>
+          <dd class="col-sm-7"><%= @incident.created_at.strftime('%b %d, %Y at %I:%M %p') %></dd>
+          
+          <dt class="col-sm-5">Messages:</dt>
+          <dd class="col-sm-7">
+            <%= @incident.total_messages %>
+          </dd>
+          
+          <dt class="col-sm-5">Suggestions:</dt>
+          <dd class="col-sm-7">
+            <span class="badge bg-secondary"><%= @incident.suggestions.count %></span>
+          </dd>
+        </dl>
+        
+        <% if @incident.suggestions.any? %>
+          <hr>
+          <h6 class="small text-muted mb-2">Suggestion Breakdown</h6>
+          <% Suggestion::CATEGORIES.each do |category| %>
+            <% count = @incident.suggestions.by_category(category).count %>
+            <% next if count.zero? %>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="small"><%= category.humanize.titleize %></span>
+              <span class="badge bg-light text-dark"><%= count %></span>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+    
+    <div class="card mt-3">
+      <div class="card-header">
+        <h6 class="card-title mb-0">
+          <i class="bi bi-speedometer2 me-2"></i>
+          Replay Status
+        </h6>
+      </div>
+      <div class="card-body">
+        <% if @incident.resolved? %>
+          <div class="alert alert-success">
+            <i class="bi bi-check-circle me-2"></i>
+            <strong>Replay Complete!</strong><br>
+            All messages have been analyzed.
+          </div>
+        <% else %>
+          <div class="alert alert-info">
+            <i class="bi bi-clock me-2"></i>
+            <strong>Ready for Replay</strong><br>
+            Click "Start Replay" to begin AI analysis.
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const startBtn = document.getElementById('start-replay-btn');
+  
+  if (startBtn) {
+    startBtn.addEventListener('click', function() {
+      startBtn.disabled = true;
+      startBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Starting...';
+      
+      fetch(`/incidents/<%= @incident.id %>/start_replay`, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content,
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.message) {
+          startBtn.innerHTML = '<i class="bi bi-check me-1"></i>Replay Started';
+          startBtn.classList.remove('btn-primary');
+          startBtn.classList.add('btn-success');
+        } else {
+          startBtn.disabled = false;
+          startBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Start Replay';
+          alert('Error: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        startBtn.disabled = false;
+        startBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Start Replay';
+        alert('An error occurred while starting the replay.');
+      });
+    });
+  }
+  
+  // Filter functionality
+  const filterInputs = document.querySelectorAll('input[name="filter"]');
+  filterInputs.forEach(input => {
+    input.addEventListener('change', function() {
+      const filterValue = this.id;
+      const suggestions = document.querySelectorAll('.suggestion-card');
+      
+      suggestions.forEach(suggestion => {
+        if (filterValue === 'all' || suggestion.dataset.category === filterValue) {
+          suggestion.style.display = 'block';
+        } else {
+          suggestion.style.display = 'none';
+        }
+      });
+    });
+  });
+});
+</script>

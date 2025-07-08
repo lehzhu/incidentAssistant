@@ -8,14 +8,30 @@ class IncidentsController < ApplicationController
   def show
     @suggestions = @incident.suggestions.recent.limit(50)
     @recent_messages = @incident.transcript_messages.ordered.limit(20)
+    @progress = 0  # Initialize progress for now
+  end
+  
+  def create
+    @incident = Incident.new(incident_params)
+    
+    if @incident.save
+      # Process transcript data if provided
+      if params[:incident][:transcript_data].present?
+        process_transcript_data(@incident, params[:incident][:transcript_data])
+      end
+      
+      render json: { id: @incident.id }
+    else
+      render json: { errors: @incident.errors.full_messages }
+    end
   end
   
   def start_replay
     if @incident.active?
       IncidentReplayJob.perform_later(@incident.id)
-      redirect_to @incident, notice: 'Incident replay started! Watch for AI suggestions.'
+      render json: { message: 'Incident replay started! Watch for AI suggestions.' }
     else
-      redirect_to @incident, alert: 'Incident has already been processed.'
+      render json: { error: 'Incident has already been processed.' }
     end
   end
   
@@ -23,5 +39,25 @@ class IncidentsController < ApplicationController
   
   def set_incident
     @incident = Incident.find(params[:id])
+  end
+  
+  def incident_params
+    params.require(:incident).permit(:title, :description)
+  end
+  
+  def process_transcript_data(incident, transcript_json)
+    begin
+      transcript_data = JSON.parse(transcript_json)
+      
+      transcript_data.each_with_index do |message, index|
+        incident.transcript_messages.create!(
+          speaker: message['speaker'],
+          content: message['content'],
+          sequence_number: index + 1
+        )
+      end
+    rescue JSON::ParserError => e
+      Rails.logger.error "Failed to parse transcript JSON: #{e.message}"
+    end
   end
 end
