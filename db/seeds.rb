@@ -9,70 +9,23 @@ if Rails.env.development?
   Incident.destroy_all
 end
 
-# Sample transcript data for testing
-sample_transcript = [
-  {
-    "speaker" => "Alice",
-    "message" => "We're getting reports that the main API is down. Users can't log in."
-  },
-  {
-    "speaker" => "Bob", 
-    "message" => "I'm seeing 500 errors in the logs. Started about 10 minutes ago."
-  },
-  {
-    "speaker" => "Alice",
-    "message" => "What was the last deployment? Could this be related to the release we pushed this morning?"
-  },
-  {
-    "speaker" => "Charlie",
-    "message" => "The deployment was at 9 AM. This issue started around 9:15 AM, so it could be related."
-  },
-  {
-    "speaker" => "Bob",
-    "message" => "I need to check the database connections. The error mentions connection timeouts."
-  },
-  {
-    "speaker" => "Alice",
-    "message" => "We should roll back the deployment while we investigate the root cause."
-  },
-  {
-    "speaker" => "Dave",
-    "message" => "Customer support is getting flooded with complaints. What's our ETA for resolution?"
-  },
-  {
-    "speaker" => "Charlie",
-    "message" => "Working on the rollback now. Should take about 5 minutes to complete."
-  },
-  {
-    "speaker" => "Bob",
-    "message" => "Found the issue - new database migration is causing connection pool exhaustion."
-  },
-  {
-    "speaker" => "Alice",
-    "message" => "Rollback completed. API is responding normally now. We need to investigate the migration issue."
-  },
-  {
-    "speaker" => "Charlie",
-    "message" => "I'll create a post-mortem ticket to analyze what went wrong with the migration."
-  },
-  {
-    "speaker" => "Dave",
-    "message" => "Confirmed - customer reports are decreasing. Issue appears resolved."
-  }
-]
+# Load real transcript data from JSON file
+transcript_file = File.read(Rails.root.join('transcript.json'))
+transcript_data = JSON.parse(transcript_file)
+sample_transcript = transcript_data['meeting_transcript']
 
-# Create a sample incident
+# Create incident from real transcript
 incident = Incident.create!(
-  title: "API Outage - Login Service Down",
-  description: "Main API experiencing 500 errors preventing user logins. Appears related to recent deployment.",
+  title: "Web Tier Error Rate Spike - Homepage Unavailable",
+  description: "High error rates on web tier causing 502 errors. Analytics product also affected. Database showing 100% CPU utilization.",
   status: "active"
 )
 
-# Create transcript messages
+# Create transcript messages from real data
 sample_transcript.each_with_index do |message, index|
   incident.transcript_messages.create!(
     speaker: message["speaker"],
-    content: message["message"],
+    content: message["text"],
     sequence_number: index + 1
   )
 end
