@@ -221,10 +221,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     const insightElement = document.createElement('div');
-    insightElement.classList.add('card', 'mb-3', 'border-primary');
+    const typeColors = {
+      'critical': 'border-danger text-danger',
+      'technical': 'border-warning text-warning', 
+      'action': 'border-info text-info',
+      'resolution': 'border-success text-success',
+      'process': 'border-secondary text-secondary',
+      'analysis': 'border-primary text-primary',
+      'communication': 'border-dark text-dark',
+      'learning': 'border-purple text-purple'
+    };
+    const colorClass = typeColors[insight.type] || 'border-primary text-primary';
+    insightElement.classList.add('card', 'mb-3', ...colorClass.split(' '));
     insightElement.innerHTML = `
       <div class="card-body">
-        <h6 class="card-title text-primary">${insight.title}</h6>
+        <h6 class="card-title ${colorClass.split(' ')[1]}">
+          <i class="bi bi-lightbulb me-1"></i>${insight.title}
+          ${insight.type ? `<span class="badge bg-light text-dark ms-2">${insight.type}</span>` : ''}
+        </h6>
         <p class="card-text small">${insight.content}</p>
         ${insight.action_items ? '<ul class="small">' + insight.action_items.map(item => `<li>${item}</li>`).join('') + '</ul>' : ''}
         <small class="text-muted">Confidence: ${Math.round(insight.confidence * 100)}%</small>
