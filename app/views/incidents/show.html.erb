@@ -166,13 +166,32 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOM loaded, checking elements...');
+  
   const startBtn = document.getElementById('start-replay-btn');
   const transcriptContainer = document.getElementById('transcript-container');
   const transcriptCount = document.getElementById('transcript-count');
   const suggestionsContainer = document.getElementById('suggestions-container');
   const suggestionCount = document.getElementById('suggestion-count');
   
+  console.log('Elements found:', {
+    startBtn,
+    transcriptContainer, 
+    transcriptCount,
+    suggestionsContainer,
+    suggestionCount
+  });
+  
   function addTranscriptMessage(message) {
+    console.log('Adding transcript message:', message);
+    const transcriptContainer = document.getElementById('transcript-container');
+    const transcriptCount = document.getElementById('transcript-count');
+    
+    if (!transcriptContainer || !transcriptCount) {
+      console.error('Transcript elements not found');
+      return;
+    }
+    
     const placeholder = document.getElementById('transcript-placeholder');
     if (placeholder) {
       placeholder.remove();
@@ -187,6 +206,15 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function addInsight(insight) {
+    console.log('Adding insight:', insight);
+    const suggestionsContainer = document.getElementById('suggestions-container');
+    const suggestionCount = document.getElementById('suggestion-count');
+    
+    if (!suggestionsContainer || !suggestionCount) {
+      console.error('Suggestions elements not found');
+      return;
+    }
+    
     const noSuggestions = document.getElementById('no-suggestions');
     if (noSuggestions) {
       noSuggestions.remove();
@@ -225,25 +253,35 @@ document.addEventListener('DOMContentLoaded', function() {
           startBtn.classList.remove('btn-primary');
           startBtn.classList.add('btn-success');
 
-          // Connect to ActionCable
-          import('@rails/actioncable').then(module => {
-            const ActionCable = module.default;
-            const cable = ActionCable.createConsumer();
-            cable.subscriptions.create({ channel: "SuggestionsChannel", incident_id: <%= @incident.id %> }, {
-              received(data) {
-                console.log('Received data:', data);
-                if (data.type === 'transcript_message') {
-                  addTranscriptMessage(data.data);
-                } else if (data.type === 'ai_insight') {
-                  addInsight(data.data.insight);
-                } else if (data.type === 'replay_complete') {
-                  startBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Complete';
-                  startBtn.classList.remove('btn-success');
-                  startBtn.classList.add('btn-outline-success');
+          // Periodically check for new data and process it
+          // Connect to ActionCable using global app variable
+          setTimeout(() => {
+            if (window.App) {
+              console.log('ActionCable available, creating subscription...');
+              const subscription = window.App.cable.subscriptions.create(
+                { channel: "SuggestionsChannel", incident_id: <%= @incident.id %> },
+                {
+                  connected() {
+                    console.log('Connected to SuggestionsChannel');
+                  },
+                  received(data) {
+                    console.log('Received data via ActionCable:', data);
+                    if (data.type === 'transcript_message') {
+                      addTranscriptMessage(data.data);
+                    } else if (data.type === 'ai_insight') {
+                      addInsight(data.data.insight);
+                    } else if (data.type === 'replay_complete') {
+                      startBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Complete';
+                      startBtn.classList.remove('btn-success');
+                      startBtn.classList.add('btn-outline-success');
+                    }
+                  }
                 }
-              }
-            });
-          });
+              );
+            } else {
+              console.error('ActionCable App not available');
+            }
+          }, 500);
 
         } else {
           startBtn.disabled = false;
