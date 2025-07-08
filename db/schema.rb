@@ -10,37 +10,51 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_07_08_051823) do
+ActiveRecord::Schema[7.2].define(version: 2025_01_10_000003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
   create_table "incidents", force: :cascade do |t|
-    t.string "title"
-    t.integer "status"
+    t.string "title", null: false
     t.text "description"
+    t.string "status", default: "active"
+    t.text "transcript_data"
+    t.integer "total_messages", default: 0
+    t.integer "processed_messages", default: 0
+    t.boolean "replay_completed", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["replay_completed"], name: "index_incidents_on_replay_completed"
+    t.index ["status"], name: "index_incidents_on_status"
   end
 
   create_table "suggestions", force: :cascade do |t|
     t.bigint "incident_id", null: false
-    t.string "category"
-    t.string "title"
-    t.text "description"
-    t.integer "status"
+    t.string "category", null: false
+    t.string "title", null: false
+    t.text "description", null: false
+    t.string "status", default: "pending"
+    t.text "context"
+    t.integer "confidence_score"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["category"], name: "index_suggestions_on_category"
+    t.index ["incident_id", "status"], name: "index_suggestions_on_incident_id_and_status"
     t.index ["incident_id"], name: "index_suggestions_on_incident_id"
   end
 
   create_table "transcript_messages", force: :cascade do |t|
     t.bigint "incident_id", null: false
-    t.string "speaker"
-    t.text "content"
-    t.integer "sequence_number"
+    t.string "speaker", null: false
+    t.text "content", null: false
+    t.integer "sequence_number", null: false
+    t.datetime "simulated_timestamp", precision: nil
+    t.boolean "processed", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["incident_id", "sequence_number"], name: "index_transcript_messages_on_incident_id_and_sequence_number"
     t.index ["incident_id"], name: "index_transcript_messages_on_incident_id"
+    t.index ["processed"], name: "index_transcript_messages_on_processed"
   end
 
   add_foreign_key "suggestions", "incidents"
