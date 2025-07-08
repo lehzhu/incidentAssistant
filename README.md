@@ -11,16 +11,24 @@
    bundle install
    rails db:create db:migrate
    ```
-3. **Set your Google API Key**
+3. **Start Redis (required for background jobs)**
+   ```
+   redis-server
+   ```
+4. **Start Sidekiq (in a separate terminal)**
+   ```
+   bundle exec sidekiq
+   ```
+5. **Set your Google API Key**
    ```
    EDITOR="nano" rails credentials:edit
    # Add: google_api_key: YOUR_GOOGLE_API_KEY
    ```  
-4. **Seed the database**
+6. **Seed the database**
    ```
    rails db:seed
    ```
-5. **Start the server**
+7. **Start the server**
    ```
    rails server
    ```
