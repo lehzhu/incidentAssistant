@@ -29,8 +29,8 @@ class IncidentsController < ApplicationController
   
   def start_replay
     if @incident.active?
-      StreamTranscriptJob.perform_async(@incident.id)
-      render json: { message: 'Transcript replay started! Watch for AI insights.' }
+      IncidentReplayJob.perform_later(@incident.id)
+      render json: { message: 'AI-powered incident replay started! Watch for LLM-generated insights.' }
     else
       render json: { error: 'Incident has already been processed.' }
     end
