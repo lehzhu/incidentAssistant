@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -e
+
+echo "Starting development environment..."
+echo "=================================="
+echo "Services:"
+echo "  - Rails server on http://localhost:3000"
+echo "  - Sidekiq worker"
+echo "  - Redis server"
+echo ""
+echo "Press Ctrl+C to stop all services"
+echo "=================================="
+echo ""
+
+foreman start -f Procfile.dev

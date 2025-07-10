@@ -11,25 +11,44 @@
    bundle install
    rails db:create db:migrate
    ```
-3. **Start Redis (required for background jobs)**
-   ```
-   redis-server
-   ```
-4. **Start Sidekiq (in a separate terminal)**
-   ```
-   bundle exec sidekiq
-   ```
-5. **Set your Google API Key**
+3. **Set your Google API Key**
    ```
    EDITOR="nano" rails credentials:edit
    # Add: google_api_key: YOUR_GOOGLE_API_KEY
    ```  
-6. **Seed the database**
+4. **Seed the database**
    ```
    rails db:seed
    ```
-7. **Start the server**
+5. **Start all services** (Choose one option):
+
+   **Option A: Using Foreman (Recommended - starts all services in one terminal)**
    ```
+   bin/dev
+   ```
+   Press Ctrl+C to stop all services.
+
+   **Option B: Using tmux (separate windows for each service)**
+   ```
+   bin/dev-tmux      # Start all services
+   bin/dev-stop      # Stop all services
+   ```
+   
+   **Option C: Simple script (all services in one terminal)**
+   ```
+   bin/dev-simple
+   ```
+   Press Ctrl+C to stop all services.
+
+   **Option D: Manual start (original method - requires 3 terminals)**
+   ```
+   # Terminal 1:
+   redis-server
+   
+   # Terminal 2:
+   bundle exec sidekiq
+   
+   # Terminal 3:
    rails server
    ```
 

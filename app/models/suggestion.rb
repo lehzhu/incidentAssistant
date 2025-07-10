@@ -10,4 +10,8 @@ class Suggestion < ApplicationRecord
   
   scope :recent, -> { order(created_at: :desc) }
   scope :by_category, ->(cat) { where(category: cat) }
+  
+  def category_display
+    category.tr('_', ' ').split.map(&:capitalize).join(' ')
+  end
 end

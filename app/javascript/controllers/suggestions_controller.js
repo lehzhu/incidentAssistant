@@ -41,7 +41,9 @@ export default class extends Controller {
   }
 
   handleMessage(data) {
-    if (data.type === 'new_suggestion') {
+    if (data.type === 'ai_suggestion') {
+      this.addSuggestion(data.data.suggestion)
+    } else if (data.type === 'new_suggestion') {
       this.addSuggestion(data.suggestion)
     } else if (data.type === 'replay_complete') {
       this.showCompletionMessage()

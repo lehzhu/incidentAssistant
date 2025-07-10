@@ -1,27 +1,66 @@
 class AiAnalyzer
   def initialize
-    @client = GoogleGenerativeAI::Client.new(
-      api_key: Rails.application.credentials.google_api_key
-    )
+    api_key = Rails.application.credentials.google_api_key || ENV['GOOGLE_API_KEY']
+    
+    if api_key.present?
+      @client = Gemini.new(
+        credentials: {
+          service: 'generative-language-api',
+          api_key: api_key
+        },
+        options: {
+          model: 'gemini-1.5-flash'
+        }
+      )
+    else
+      @client = nil
+      Rails.logger.warn "Google API key not configured. AI analysis will be skipped."
+    end
   end
   
   def analyze_transcript_chunk(messages)
     return [] if messages.empty? || messages.count < 3
     
+    # Skip AI analysis if client is not configured
+    unless @client
+      Rails.logger.warn "Gemini client not configured, skipping AI analysis"
+      return []
+    end
+    
     prompt = build_analysis_prompt(messages)
     
-    response = @client.generate_content(
-      model: 'gemini-1.5-flash',
-      contents: prompt,
-      generation_config: {
-        response_mime_type: 'application/json',
-        temperature: 0.1
-      }
-    )
+    # Format prompt correctly for gemini-rb gem
+    content = {
+      contents: [
+        {
+          parts: [
+            {
+              text: prompt
+            }
+          ]
+        }
+      ]
+    }
     
-    parse_ai_response(response.text)
+    response = @client.generate_content(content)
+    
+    # Handle different possible response formats
+    response_text = case response
+    when Hash
+      response.dig('candidates', 0, 'content', 'parts', 0, 'text') || 
+      response.dig('text') ||
+      response.to_s
+    when String
+      response
+    else
+      response.to_s
+    end
+    
+    parse_ai_response(response_text)
   rescue => e
     Rails.logger.error "AI Analysis failed: #{e.message}"
+    Rails.logger.error "Error details: #{e.backtrace.first(5).join('\n')}"
+    Rails.logger.error "Full error: #{e.inspect}"
     []
   end
   
@@ -84,7 +123,15 @@ class AiAnalyzer
   end
   
   def parse_ai_response(response_text)
-    suggestions = JSON.parse(response_text)
+    # Remove markdown code blocks if present
+    cleaned_text = response_text.strip
+    if cleaned_text.start_with?('```json')
+      cleaned_text = cleaned_text.gsub(/^```json\s*/, '').gsub(/```\s*$/, '')
+    elsif cleaned_text.start_with?('```')
+      cleaned_text = cleaned_text.gsub(/^```\s*/, '').gsub(/```\s*$/, '')
+    end
+    
+    suggestions = JSON.parse(cleaned_text)
     
     return [] unless suggestions.is_a?(Array)
     
@@ -94,6 +141,7 @@ class AiAnalyzer
     end
   rescue JSON::ParserError => e
     Rails.logger.error "Failed to parse AI response: #{e.message}"
+    Rails.logger.error "Response text was: #{response_text[0..200]}..."
     []
   end
   
