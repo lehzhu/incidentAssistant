@@ -12,13 +12,21 @@
 <div class="suggestion-card border-start border-<%= config[:color] %> border-3 bg-white m-3 p-3 rounded shadow-sm" 
      id="suggestion-<%= suggestion.id %>"
      data-suggestion-id="<%= suggestion.id %>"
-     data-category="<%= suggestion.category %>">
+     data-category="<%= suggestion.category %>"
+     data-important="<%= suggestion.important? %>">
   
   <div class="d-flex justify-content-between align-items-start mb-2">
-    <span class="badge bg-<%= config[:color] %> bg-opacity-10 text-<%= config[:color] %> border border-<%= config[:color] %>">
-      <i class="bi bi-<%= config[:icon] %> me-1"></i>
-      <%= suggestion.category_display %>
-    </span>
+    <div>
+      <span class="badge bg-<%= config[:color] %> bg-opacity-10 text-<%= config[:color] %> border border-<%= config[:color] %>">
+        <i class="bi bi-<%= config[:icon] %> me-1"></i>
+        <%= suggestion.category_display %>
+      </span>
+      <% if suggestion.important? %>
+        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger ms-1" title="Important">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </span>
+      <% end %>
+    </div>
     
     <% if suggestion.pending? %>
       <div class="btn-group btn-group-sm" role="group">

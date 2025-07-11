@@ -80,8 +80,9 @@ class StreamTranscriptJob
   private
   
   def should_analyze_now?(index)
-    # Analyze every 5 messages, or at key points in the conversation
-    (index + 1) % 5 == 0 || index == 2 # Start early analysis
+    # Analyze less frequently to avoid too many suggestions
+    # Analyze at: message 10, 20, 30, 40, etc. and at the end
+    (index + 1) % 10 == 0 && index > 5
   end
   
   def analyze_and_broadcast_suggestions(incident_id, current_index)
@@ -106,7 +107,8 @@ class StreamTranscriptJob
         category: ai_suggestion['category'],
         title: ai_suggestion['title'],
         description: ai_suggestion['description'],
-        status: 'pending'
+        status: 'pending',
+        importance_score: ai_suggestion['importance'] || 50
       )
       
       # Mark as created

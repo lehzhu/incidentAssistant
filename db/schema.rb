@@ -38,7 +38,9 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_08_071447) do
     t.integer "confidence_score"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "importance_score", default: 50
     t.index ["category"], name: "index_suggestions_on_category"
+    t.index ["importance_score"], name: "index_suggestions_on_importance_score"
     t.index ["incident_id", "status"], name: "index_suggestions_on_incident_id_and_status"
     t.index ["incident_id"], name: "index_suggestions_on_incident_id"
   end

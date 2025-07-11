@@ -106,15 +106,24 @@ class AiAnalyzer
         {
           "category": "action_item",
           "title": "Brief, actionable title (max 60 chars)",
-          "description": "Clear explanation of why this matters (max 150 chars)"
+          "description": "Clear explanation of why this matters (max 150 chars)",
+          "importance": 85  // Score 0-100, where 70+ is "important"
         }
       ]
       
+      Importance scoring guidelines:
+      - 90-100: Critical issues (data loss, security, major outages)
+      - 70-89: Important (customer impact, performance issues, missing documentation)
+      - 50-69: Moderate (process improvements, minor issues)
+      - 0-49: Low priority (nice-to-have, minor optimizations)
+      
       Guidelines:
-      - Only include clear, actionable items that were explicitly mentioned or strongly implied
-      - Avoid duplicating suggestions for the same topic
-      - Focus on items that incident responders would actually need to track
-      - Return empty array [] if no clear suggestions emerge
+      - Be HIGHLY SELECTIVE - only extract the most important and actionable items
+      - Focus on items with real business impact or critical technical issues
+      - Avoid generic or obvious suggestions (e.g., "update documentation" without specifics)
+      - Limit to 2-3 suggestions per analysis chunk unless there are truly critical issues
+      - Prioritize suggestions with importance score >= 70
+      - Return empty array [] if no high-value suggestions emerge
     PROMPT
   end
   
