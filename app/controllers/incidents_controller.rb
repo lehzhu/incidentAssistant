@@ -29,8 +29,17 @@ class IncidentsController < ApplicationController
   
   def start_replay
     if @incident.active?
-      StreamTranscriptJob.perform_async(@incident.id)
-      render json: { message: 'Transcript replay started! Watch for AI insights.' }
+      # Check if a job is already running for this incident
+      cache_key = "transcript_job_running_#{@incident.id}"
+      
+      if Rails.cache.read(cache_key)
+        render json: { error: 'Transcript replay is already running for this incident.' }
+      else
+        # Set a cache flag for 5 minutes (longer than expected job duration)
+        Rails.cache.write(cache_key, true, expires_in: 5.minutes)
+        StreamTranscriptJob.perform_async(@incident.id)
+        render json: { message: 'Transcript replay started! Watch for AI insights.' }
+      end
     else
       render json: { error: 'Incident has already been processed.' }
     end

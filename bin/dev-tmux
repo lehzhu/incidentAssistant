@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -e
+
+SESSION_NAME="incident-assistant"
+
+# Check if session already exists
+if tmux has-session -t $SESSION_NAME 2>/dev/null; then
+    echo "Session '$SESSION_NAME' already exists. Attaching..."
+    tmux attach-session -t $SESSION_NAME
+    exit 0
+fi
+
+echo "Creating new tmux session: $SESSION_NAME"
+
+# Create new session with first window for Rails
+tmux new-session -d -s $SESSION_NAME -n rails
+tmux send-keys -t $SESSION_NAME:rails "bundle exec rails server" C-m
+
+# Create window for Sidekiq
+tmux new-window -t $SESSION_NAME -n sidekiq
+tmux send-keys -t $SESSION_NAME:sidekiq "bundle exec sidekiq" C-m
+
+# Create window for Redis
+tmux new-window -t $SESSION_NAME -n redis
+tmux send-keys -t $SESSION_NAME:redis "redis-server" C-m
+
+# Create window for Rails console (useful for debugging)
+tmux new-window -t $SESSION_NAME -n console
+tmux send-keys -t $SESSION_NAME:console "rails console" C-m
+
+# Select the Rails window and attach
+tmux select-window -t $SESSION_NAME:rails
+tmux attach-session -t $SESSION_NAME

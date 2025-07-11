@@ -1,8 +1,12 @@
+require 'set'
+require 'ostruct'
+
 class StreamTranscriptJob
   include Sidekiq::Worker
 
   def perform(incident_id)
     incident = Incident.find(incident_id)
+    @ai_analyzer = AiAnalyzer.new
     
     # Load transcript data
     transcript_path = Rails.root.join('transcript.json')
@@ -13,10 +17,19 @@ class StreamTranscriptJob
     total_messages = messages.length
     interval = 60.0 / total_messages # seconds per message
     
-    # Track insights to avoid duplicates
-    @existing_insights = {}
+    # Track processed messages for AI analysis
+    @processed_messages = []
+    # Track created suggestions to avoid duplicates
+    @created_suggestions = Set.new
     
     messages.each_with_index do |message, index|
+      # Convert message format for our models
+      transcript_message = OpenStruct.new(
+        speaker: message['speaker'],
+        content: message['text']
+      )
+      @processed_messages << transcript_message
+      
       # Send transcript message
       ActionCable.server.broadcast(
         "incident_#{incident_id}_suggestions",
@@ -32,26 +45,17 @@ class StreamTranscriptJob
         }
       )
       
-      # Evaluate message for insights
-      insight_action = evaluate_message_for_insight(message, messages[0..index], index)
-      
-      if insight_action
-        ActionCable.server.broadcast(
-          "incident_#{incident_id}_suggestions",
-          {
-            type: 'ai_insight',
-            data: {
-              insight: insight_action,
-              timestamp: Time.current.to_i,
-              related_to: index + 1
-            }
-          }
-        )
+      # Analyze messages with AI every few messages (to avoid too many API calls)
+      if should_analyze_now?(index)
+        analyze_and_broadcast_suggestions(incident_id, index)
       end
       
       # Sleep until next message
       sleep(interval)
     end
+    
+    # Final analysis with all messages
+    analyze_and_broadcast_suggestions(incident_id, messages.length - 1)
     
     # Send completion message
     ActionCable.server.broadcast(
@@ -64,118 +68,67 @@ class StreamTranscriptJob
         }
       }
     )
+    
+    # Clear the job running flag
+    Rails.cache.delete("transcript_job_running_#{incident_id}")
+  rescue => e
+    Rails.logger.error "StreamTranscriptJob failed: #{e.message}"
+    Rails.cache.delete("transcript_job_running_#{incident_id}")
+    raise
   end
   
   private
   
-  def evaluate_message_for_insight(message, context_messages, index)
-    text = message['text'].downcase
-    speaker = message['speaker']
-    
-    # Check for various insight triggers
-    case
-    when text.include?('error rate') || text.include?('spiked')
-      update_or_create_insight('Issue Detection', {
-        content: 'High error rate detected - service degradation in progress. Immediate impact assessment needed.',
-        action_items: ['Check affected services', 'Assess customer impact', 'Consider severity escalation'],
-        confidence: 0.9,
-        type: 'critical'
-      })
-      
-    when text.include?('affected') && (text.include?('service') || text.include?('web') || text.include?('analytics'))
-      update_or_create_insight('Service Impact Analysis', {
-        content: 'Multiple services affected - suggests shared dependency or infrastructure issue.',
-        action_items: ['Document all affected services', 'Identify common dependencies', 'Update incident scope'],
-        confidence: 0.85,
-        type: 'analysis'
-      })
-      
-    when text.include?('sev-1') || text.include?('sev-2') || text.include?('severity')
-      update_or_create_insight('Severity Assessment', {
-        content: 'Team discussing incident severity. Proper classification affects response and communication.',
-        action_items: ['Confirm severity level', 'Notify appropriate stakeholders', 'Activate escalation procedures'],
-        confidence: 0.8,
-        type: 'process'
-      })
-      
-    when text.include?('postgres') || text.include?('database') || text.include?('cpu') || text.include?('pegged')
-      update_or_create_insight('Root Cause Identified', {
-        content: 'Database performance issues identified as likely root cause. Focus investigation here.',
-        action_items: ['Analyze database queries', 'Check resource utilization', 'Review recent changes'],
-        confidence: 0.95,
-        type: 'technical'
-      })
-      
-    when text.include?('deploy') && !text.include?('rollback')
-      update_or_create_insight('Deployment Correlation', {
-        content: 'Recent deployment timeline correlates with incident start. Investigate deployment changes.',
-        action_items: ['Review deployment changes', 'Check deployment logs', 'Prepare rollback plan'],
-        confidence: 0.88,
-        type: 'technical'
-      })
-      
-    when text.include?('rollback') && !text.include?('complete')
-      update_or_create_insight('Rollback Decision', {
-        content: 'Team deciding on rollback strategy. Quick decision needed to minimize impact.',
-        action_items: ['Confirm rollback procedure', 'Identify rollback owner', 'Estimate rollback time'],
-        confidence: 0.9,
-        type: 'action'
-      })
-      
-    when text.include?('rollback') && (text.include?('complete') || text.include?('resolve'))
-      update_or_create_insight('Resolution Progress', {
-        content: 'Rollback completed - monitoring for service recovery and confirming resolution.',
-        action_items: ['Monitor service metrics', 'Confirm customer impact resolved', 'Prepare status update'],
-        confidence: 0.93,
-        type: 'resolution'
-      })
-      
-    when text.include?('postmortem') || text.include?('follow up') || text.include?('action item')
-      update_or_create_insight('Post-Incident Planning', {
-        content: 'Team identifying follow-up actions and process improvements from this incident.',
-        action_items: ['Schedule postmortem meeting', 'Document lessons learned', 'Create improvement tickets'],
-        confidence: 0.85,
-        type: 'learning'
-      })
-      
-    when text.include?('customer') || text.include?('cs') || text.include?('reports')
-      update_or_create_insight('Customer Impact', {
-        content: 'Customer reports confirmed - external impact being tracked and communicated.',
-        action_items: ['Update status page', 'Prepare customer communication', 'Track affected customers'],
-        confidence: 0.9,
-        type: 'communication'
-      })
-      
-    # Generate contextual insights based on conversation flow
-    when index == 5
-      update_or_create_insight('Incident Triage', {
-        content: 'Initial triage phase - team gathering information and assessing scope.',
-        action_items: ['Confirm incident scope', 'Establish communication channels', 'Assign roles'],
-        confidence: 0.7,
-        type: 'process'
-      })
-      
-    when index == 20
-      update_or_create_insight('Investigation Phase', {
-        content: 'Active investigation underway - systematic troubleshooting approach needed.',
-        action_items: ['Continue systematic investigation', 'Document findings', 'Rule out common causes'],
-        confidence: 0.75,
-        type: 'process'
-      })
-    end
+  def should_analyze_now?(index)
+    # Analyze less frequently to avoid too many suggestions
+    # Analyze at: message 10, 20, 30, 40, etc. and at the end
+    (index + 1) % 10 == 0 && index > 5
   end
-
-  def update_or_create_insight(title, attributes)
-    if @existing_insights[title]
-      # Append and increment confidence slightly
-      @existing_insights[title][:content] += " Additional context shows continued issues."
-      @existing_insights[title][:confidence] += 0.05
-      nil # No need to broadcast again, just update
-    else
-      # Create new insight
-      @existing_insights[title] = attributes.merge({ title: title })
-      @existing_insights[title] # Return new insight to broadcast
+  
+  def analyze_and_broadcast_suggestions(incident_id, current_index)
+    # Only analyze if we have enough messages
+    return if @processed_messages.length < 3
+    
+    incident = Incident.find(incident_id)
+    
+    # Get suggestions from AI
+    ai_suggestions = @ai_analyzer.analyze_transcript_chunk(@processed_messages)
+    
+    # Create and broadcast each suggestion
+    ai_suggestions.each do |ai_suggestion|
+      # Create a unique key for deduplication
+      suggestion_key = "#{ai_suggestion['category']}_#{ai_suggestion['title']}"
+      
+      # Skip if we've already created this suggestion
+      next if @created_suggestions.include?(suggestion_key)
+      
+      # Create suggestion in database
+      suggestion = incident.suggestions.create!(
+        category: ai_suggestion['category'],
+        title: ai_suggestion['title'],
+        description: ai_suggestion['description'],
+        status: 'pending',
+        importance_score: ai_suggestion['importance'] || 50
+      )
+      
+      # Mark as created
+      @created_suggestions.add(suggestion_key)
+      
+      # Broadcast the created suggestion
+      ActionCable.server.broadcast(
+        "incident_#{incident_id}_suggestions",
+        {
+          type: 'ai_suggestion',
+          data: {
+            suggestion: suggestion.as_json,
+            timestamp: Time.current.to_i,
+            related_to: current_index + 1
+          }
+        }
+      )
     end
+  rescue => e
+    Rails.logger.error "Failed to analyze transcript chunk: #{e.message}"
   end
   
 end

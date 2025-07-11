@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+SESSION_NAME="incident-assistant"
+
+if tmux has-session -t $SESSION_NAME 2>/dev/null; then
+    echo "Stopping development environment..."
+    tmux kill-session -t $SESSION_NAME
+    echo "All services stopped."
+else
+    echo "No development session is running."
+fi
+
+# Also ensure any stray processes are killed
+echo "Cleaning up any remaining processes..."
+pkill -f "rails server" || true
+pkill -f sidekiq || true
+pkill -f redis-server || true
+
+echo "Done!"

@@ -37,8 +37,8 @@
             <span class="badge bg-primary ms-2" id="suggestion-count"><%= @suggestions.count %></span>
           </h6>
           <div class="btn-group btn-group-sm" role="group">
-            <input type="radio" class="btn-check" name="filter" id="all" checked>
-            <label class="btn btn-outline-secondary" for="all">All</label>
+            <input type="radio" class="btn-check" name="filter" id="important" checked>
+            <label class="btn btn-outline-danger" for="important">Important</label>
             
             <input type="radio" class="btn-check" name="filter" id="action_item">
             <label class="btn btn-outline-primary" for="action_item">Actions</label>
@@ -51,6 +51,9 @@
             
             <input type="radio" class="btn-check" name="filter" id="missing_info">
             <label class="btn btn-outline-info" for="missing_info">Missing Info</label>
+            
+            <input type="radio" class="btn-check" name="filter" id="all">
+            <label class="btn btn-outline-secondary" for="all">All</label>
           </div>
         </div>
         
@@ -314,18 +317,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Filter functionality
   const filterInputs = document.querySelectorAll('input[name="filter"]');
+  
+  // Apply initial filter on page load
+  function applyFilter(filterValue) {
+    const suggestions = document.querySelectorAll('.suggestion-card');
+    let visibleCount = 0;
+
+    suggestions.forEach(suggestion => {
+      const shouldShow = filterValue === 'all' || 
+                        (filterValue === 'important' && suggestion.dataset.important === 'true') ||
+                        (filterValue !== 'important' && suggestion.dataset.category === filterValue);
+      
+      if (shouldShow) {
+        suggestion.style.display = 'block';
+        visibleCount++;
+      } else {
+        suggestion.style.display = 'none';
+      }
+    });
+    
+    // Update the count to show visible suggestions
+    const countBadge = document.getElementById('suggestion-count');
+    if (countBadge) {
+      countBadge.textContent = visibleCount;
+    }
+  }
+  
+  // Apply important filter on load
+  applyFilter('important');
+  
   filterInputs.forEach(input => {
     input.addEventListener('change', function() {
-      const filterValue = this.id;
-      const suggestions = document.querySelectorAll('.suggestion-card');
-
-      suggestions.forEach(suggestion => {
-        if (filterValue === 'all' || suggestion.dataset.category === filterValue) {
-          suggestion.style.display = 'block';
-        } else {
-          suggestion.style.display = 'none';
-        }
-      });
+      applyFilter(this.id);
     });
   });
 });

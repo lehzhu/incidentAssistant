@@ -41,7 +41,9 @@ export default class extends Controller {
   }
 
   handleMessage(data) {
-    if (data.type === 'new_suggestion') {
+    if (data.type === 'ai_suggestion') {
+      this.addSuggestion(data.data.suggestion)
+    } else if (data.type === 'new_suggestion') {
       this.addSuggestion(data.suggestion)
     } else if (data.type === 'replay_complete') {
       this.showCompletionMessage()
@@ -78,19 +80,24 @@ export default class extends Controller {
     }
     
     const config = categoryConfigs[suggestion.category] || { color: 'secondary', icon: 'question' }
+    const isImportant = suggestion.importance_score >= 70
     
     return `
       <div class="suggestion-card border-start border-${config.color} border-3 bg-white m-3 p-3 rounded shadow-sm" 
            id="suggestion-${suggestion.id}"
            data-suggestion-id="${suggestion.id}"
            data-category="${suggestion.category}"
+           data-important="${isImportant}"
            style="opacity: 0; transform: translateY(-20px);">
         
         <div class="d-flex justify-content-between align-items-start mb-2">
-          <span class="badge bg-${config.color} bg-opacity-10 text-${config.color} border border-${config.color}">
-            <i class="bi bi-${config.icon} me-1"></i>
-            ${suggestion.category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-          </span>
+          <div>
+            <span class="badge bg-${config.color} bg-opacity-10 text-${config.color} border border-${config.color}">
+              <i class="bi bi-${config.icon} me-1"></i>
+              ${suggestion.category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            </span>
+            ${isImportant ? '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger ms-1" title="Important"><i class="bi bi-exclamation-triangle-fill"></i></span>' : ''}
+          </div>
           
           <div class="btn-group btn-group-sm" role="group">
             <button type="button" 
