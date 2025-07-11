@@ -59,7 +59,7 @@
 - Used Ruby on Rails for fast development with PostgreSQL
 - Integrated Google Gemini for AI-powered suggestions
 - Used Bootstrap 5 for responsive design
-- Static AI insights due to time constraint and stability concerns
+- Gemini 1.5 Flash AI insights for best speed and cost
 
 ## Improvements and Time Spent
 I spent 6 hours on this project as I wanted enough time to learn Rails but still timeboxed and focused on a straightforward MVP
