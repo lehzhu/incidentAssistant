@@ -1,52 +1,58 @@
-class IncidentReplayJob < ApplicationJob
-  queue_as :default
-  
+require 'set'
+
+class IncidentReplayJob
+  include Sidekiq::Worker
+  sidekiq_options retry: false # Don't retry this job if it fails midway
+
   def perform(incident_id)
     @incident = Incident.find(incident_id)
     @ai_analyzer = AiAnalyzer.new
     
-    Rails.logger.info "Starting replay for incident #{@incident.id} with #{@incident.total_messages} messages"
+    # Read from the database, not a static file
+    messages = @incident.transcript_messages.ordered
+    return if messages.empty? # Nothing to do
+
+    # Use the interval logic from your Incident model
+    interval = @incident.processing_interval_seconds
+    total_messages = @incident.total_messages
     
-    process_messages_sequentially
+    @created_suggestions = Set.new # For deduplication
     
-    @incident.update!(status: :resolved)
+    messages.each_with_index do |message, index|
+      # Broadcast the message from the database
+      broadcast_transcript_message(message, index, total_messages)
+      
+      # Analyze based on context up to this point
+      if should_analyze_now?(index, total_messages)
+        # Pass DB records to the analyzer
+        context_messages = @incident.transcript_messages.up_to_sequence(message.sequence_number).last(10)
+        analyze_and_broadcast_suggestions(context_messages, index)
+      end
+      
+      sleep(interval)
+    end
+    
     broadcast_completion
     
-    Rails.logger.info "Completed replay for incident #{@incident.id}"
+    @incident.update!(status: :resolved, replay_completed: true)
+    Rails.cache.delete("incident_replay_running_#{@incident.id}")
+  rescue => e
+    Rails.logger.error "IncidentReplayJob for incident #{incident_id} failed: #{e.message}"
+    Rails.cache.delete("incident_replay_running_#{@incident.id}")
+    # Optional: Mark incident as failed
+    # @incident&.update(status: :failed) 
+    raise
   end
   
   private
   
-  def process_messages_sequentially
-    @incident.transcript_messages.ordered.each_with_index do |current_message, index|
-      Rails.logger.debug "Processing message #{index + 1}/#{@incident.total_messages}: #{current_message.speaker}"
-      
-      # First, broadcast the transcript message for real-time display
-      broadcast_transcript_message(current_message, index)
-      
-      # CRITICAL: Only use messages up to current point (streaming simulation)
-      context_messages = @incident.transcript_messages
-                                  .up_to_sequence(current_message.sequence_number)
-                                  .ordered
-                                  .last(8)  # Use last 8 messages as context window
-      
-      # Generate AI suggestions based on context (only if we have enough context)
-      if context_messages.count >= 3
-        suggestions = @ai_analyzer.analyze_transcript_chunk(context_messages)
-        
-        # Create and broadcast suggestions
-        suggestions.each do |suggestion_data|
-          create_and_broadcast_suggestion(suggestion_data)
-        end
-      end
-      
-      # Wait before processing next message (simulate real-time)
-      sleep(@incident.processing_interval_seconds)
-    end
+  def should_analyze_now?(index, total_messages)
+    # Analyze less frequently to avoid too many suggestions
+    # Analyze at: message 10, 20, 30, 40, etc. and at the end
+    ((index + 1) % 10 == 0 && index > 5) || index == total_messages - 1
   end
   
-  def broadcast_transcript_message(message, index)
-    # Broadcast transcript message for real-time display
+  def broadcast_transcript_message(message, index, total_messages)
     ActionCable.server.broadcast(
       "incident_#{@incident.id}_suggestions",
       {
@@ -56,56 +62,55 @@ class IncidentReplayJob < ApplicationJob
           text: message.content,
           timestamp: Time.current.to_i,
           sequence: index + 1,
-          total: @incident.total_messages
+          total: total_messages
         }
       }
     )
   end
-  
-  def create_and_broadcast_suggestion(suggestion_data)
-    # Avoid duplicate suggestions
-    existing = @incident.suggestions.where(
-      category: suggestion_data['category'],
-      title: suggestion_data['title']
-    ).first
+
+  def analyze_and_broadcast_suggestions(context_messages, current_index)
+    # Get suggestions from AI
+    ai_suggestions = @ai_analyzer.analyze_transcript_chunk(context_messages)
     
-    return if existing
-    
-    suggestion = @incident.suggestions.create!(
-      category: suggestion_data['category'],
-      title: suggestion_data['title'],
-      description: suggestion_data['description'],
-      status: :pending
-    )
-    
-    # Broadcast new suggestion via Action Cable (frontend expects ai_insight format)
-    ActionCable.server.broadcast(
-      "incident_#{@incident.id}_suggestions",
-      {
-        type: 'ai_insight',
-        data: {
-          insight: {
-            title: suggestion.title,
-            content: suggestion.description,
-            type: suggestion.category,
-            confidence: 0.9 # Default confidence from LLM
-          },
-          timestamp: Time.current.to_i,
-          related_to: suggestion.id
+    ai_suggestions.each do |ai_suggestion|
+      # Deduplication logic
+      suggestion_key = "#{ai_suggestion['category']}_#{ai_suggestion['title']}"
+      next if @created_suggestions.include?(suggestion_key)
+      
+      # Create suggestion in database
+      suggestion = @incident.suggestions.create!(
+        category: ai_suggestion['category'],
+        title: ai_suggestion['title'],
+        description: ai_suggestion['description'],
+        status: :pending,
+        importance_score: ai_suggestion['importance'] || 50
+      )
+      @created_suggestions.add(suggestion_key)
+      
+      # Broadcast the created suggestion
+      ActionCable.server.broadcast(
+        "incident_#{@incident.id}_suggestions",
+        {
+          type: 'ai_suggestion',
+          data: { suggestion: suggestion.as_json(methods: :important?) } 
         }
-      }
-    )
-    
-    Rails.logger.info "Created suggestion: #{suggestion.category} - #{suggestion.title}"
+      )
+    end
+  rescue => e
+    Rails.logger.error "Failed to analyze transcript chunk: #{e.message}"
   end
-  
+
   def broadcast_completion
     ActionCable.server.broadcast(
       "incident_#{@incident.id}_suggestions",
       {
         type: 'replay_complete',
-        message: 'Incident replay completed successfully'
+        data: {
+          message: 'Transcript replay completed',
+          timestamp: Time.current.to_i
+        }
       }
     )
   end
+  
 end

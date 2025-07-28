@@ -30,14 +30,14 @@ class IncidentsController < ApplicationController
   def start_replay
     if @incident.active?
       # Check if a job is already running for this incident
-      cache_key = "transcript_job_running_#{@incident.id}"
+      cache_key = "incident_replay_running_#{@incident.id}"
       
       if Rails.cache.read(cache_key)
         render json: { error: 'Transcript replay is already running for this incident.' }
       else
         # Set a cache flag for 5 minutes (longer than expected job duration)
         Rails.cache.write(cache_key, true, expires_in: 5.minutes)
-        StreamTranscriptJob.perform_async(@incident.id)
+        IncidentReplayJob.perform_async(@incident.id)
         render json: { message: 'Transcript replay started! Watch for AI insights.' }
       end
     else
@@ -56,18 +56,19 @@ class IncidentsController < ApplicationController
   end
   
   def process_transcript_data(incident, transcript_json)
-    begin
-      transcript_data = JSON.parse(transcript_json)
-      
-      transcript_data.each_with_index do |message, index|
-        incident.transcript_messages.create!(
-          speaker: message['speaker'],
-          content: message['content'],
-          sequence_number: index + 1
-        )
-      end
-    rescue JSON::ParserError => e
-      Rails.logger.error "Failed to parse transcript JSON: #{e.message}"
+    data = JSON.parse(transcript_json)
+    messages = data['meeting_transcript'] || data # Handle both formats
+
+    messages.each_with_index do |message_data, index|
+      incident.transcript_messages.create!(
+        speaker: message_data['speaker'],
+        content: message_data['text'] || message_data['content'], # Handle both 'text' and 'content' keys
+        sequence_number: index + 1
+      )
     end
+    # update total_messages on the incident record
+    incident.update(total_messages: incident.transcript_messages.count)
+  rescue JSON::ParserError => e
+    Rails.logger.error "Failed to parse transcript JSON for incident #{incident.id}: #{e.message}"
   end
 end

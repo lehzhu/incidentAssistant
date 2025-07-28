@@ -1,5 +1,5 @@
 <!-- app/views/incidents/show.html.erb -->
-<div class="row">
+<div class="row" data-controller="suggestions" data-suggestions-incident-id-value="<%= @incident.id %>">
   <div class="col-lg-8">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
@@ -14,7 +14,9 @@
             <%= @incident.status&.humanize || 'Unknown' %>
           </span>
           <% unless @incident.resolved? %>
-            <button id="start-replay-btn" class="btn btn-primary btn-sm">
+            <button id="start-replay-btn" class="btn btn-primary btn-sm"
+                    data-action="click->suggestions#startReplay"
+                    data-suggestions-target="replayButton">
               <i class="bi bi-play-fill me-1"></i>
               Start Replay
             </button>
@@ -24,7 +26,10 @@
       <div class="card-body">
         <% unless @incident.resolved? %>
           <div class="progress mb-3" style="height: 8px;">
-            <div class="progress-bar" role="progressbar" style="width: <%= @progress %>%" id="progress-bar">
+            <div class="progress-bar" role="progressbar" 
+                 style="width: <%= @progress %>%" 
+                 id="progress-bar"
+                 data-suggestions-target="progressBar">
               <%= @progress %>%
             </div>
           </div>
@@ -34,32 +39,36 @@
           <h6 class="mb-0">
             <i class="bi bi-lightbulb me-2"></i>
             AI Suggestions
-            <span class="badge bg-primary ms-2" id="suggestion-count"><%= @suggestions.count %></span>
+            <span class="badge bg-primary ms-2" id="suggestion-count" data-suggestions-target="suggestionCount"><%= @suggestions.count %></span>
           </h6>
           <div class="btn-group btn-group-sm" role="group">
-            <input type="radio" class="btn-check" name="filter" id="important" checked>
+            <input type="radio" class="btn-check" name="filter" id="important" checked
+                   data-action="change->suggestions#applyFilter">
             <label class="btn btn-outline-danger" for="important">Important</label>
             
-            <input type="radio" class="btn-check" name="filter" id="action_item">
+            <input type="radio" class="btn-check" name="filter" id="action_item"
+                   data-action="change->suggestions#applyFilter">
             <label class="btn btn-outline-primary" for="action_item">Actions</label>
             
-            <input type="radio" class="btn-check" name="filter" id="timeline_event">
+            <input type="radio" class="btn-check" name="filter" id="timeline_event"
+                   data-action="change->suggestions#applyFilter">
             <label class="btn btn-outline-success" for="timeline_event">Timeline</label>
             
-            <input type="radio" class="btn-check" name="filter" id="root_cause">
+            <input type="radio" class="btn-check" name="filter" id="root_cause"
+                   data-action="change->suggestions#applyFilter">
             <label class="btn btn-outline-warning" for="root_cause">Root Cause</label>
             
-            <input type="radio" class="btn-check" name="filter" id="missing_info">
+            <input type="radio" class="btn-check" name="filter" id="missing_info"
+                   data-action="change->suggestions#applyFilter">
             <label class="btn btn-outline-info" for="missing_info">Missing Info</label>
             
-            <input type="radio" class="btn-check" name="filter" id="all">
+            <input type="radio" class="btn-check" name="filter" id="all"
+                   data-action="change->suggestions#applyFilter">
             <label class="btn btn-outline-secondary" for="all">All</label>
           </div>
         </div>
         
-        <div id="suggestions-container" 
-             data-controller="suggestions" 
-             data-suggestions-incident-id-value="<%= @incident.id %>">
+        <div id="suggestions-container" data-suggestions-target="container">
           
           <% if @suggestions.any? %>
             <% @suggestions.each do |suggestion| %>
@@ -83,11 +92,11 @@
         <h6 class="card-title mb-0">
           <i class="bi bi-chat-left-text me-2"></i>
           Live Transcript
-          <span class="badge bg-secondary ms-2" id="transcript-count">0</span>
+          <span class="badge bg-secondary ms-2" id="transcript-count" data-suggestions-target="transcriptCount">0</span>
         </h6>
       </div>
       <div class="card-body" style="max-height: 300px; overflow-y: auto;">
-        <div id="transcript-container">
+        <div id="transcript-container" data-suggestions-target="transcriptContainer">
           <div class="text-center py-3 text-muted" id="transcript-placeholder">
             <i class="bi bi-mic-mute"></i>
             <p class="small mb-0">Transcript will appear here during replay</p>
@@ -166,190 +175,3 @@
     </div>
   </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOM loaded, checking elements...');
-  
-  const startBtn = document.getElementById('start-replay-btn');
-  const transcriptContainer = document.getElementById('transcript-container');
-  const transcriptCount = document.getElementById('transcript-count');
-  const suggestionsContainer = document.getElementById('suggestions-container');
-  const suggestionCount = document.getElementById('suggestion-count');
-  
-  console.log('Elements found:', {
-    startBtn,
-    transcriptContainer, 
-    transcriptCount,
-    suggestionsContainer,
-    suggestionCount
-  });
-  
-  function addTranscriptMessage(message) {
-    console.log('Adding transcript message:', message);
-    const transcriptContainer = document.getElementById('transcript-container');
-    const transcriptCount = document.getElementById('transcript-count');
-    
-    if (!transcriptContainer || !transcriptCount) {
-      console.error('Transcript elements not found');
-      return;
-    }
-    
-    const placeholder = document.getElementById('transcript-placeholder');
-    if (placeholder) {
-      placeholder.remove();
-    }
-    
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('mb-2', 'small');
-    messageElement.innerHTML = `<strong>${message.speaker}:</strong> ${message.text}`;
-    transcriptContainer.appendChild(messageElement);
-    transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
-    transcriptCount.textContent = parseInt(transcriptCount.textContent) + 1;
-  }
-
-  function addInsight(insight) {
-    console.log('Adding insight:', insight);
-    const suggestionsContainer = document.getElementById('suggestions-container');
-    const suggestionCount = document.getElementById('suggestion-count');
-    
-    if (!suggestionsContainer || !suggestionCount) {
-      console.error('Suggestions elements not found');
-      return;
-    }
-    
-    const noSuggestions = document.getElementById('no-suggestions');
-    if (noSuggestions) {
-      noSuggestions.remove();
-    }
-    
-    const insightElement = document.createElement('div');
-    const typeColors = {
-      'critical': 'border-danger text-danger',
-      'technical': 'border-warning text-warning', 
-      'action': 'border-info text-info',
-      'resolution': 'border-success text-success',
-      'process': 'border-secondary text-secondary',
-      'analysis': 'border-primary text-primary',
-      'communication': 'border-dark text-dark',
-      'learning': 'border-purple text-purple'
-    };
-    const colorClass = typeColors[insight.type] || 'border-primary text-primary';
-    insightElement.classList.add('card', 'mb-3', ...colorClass.split(' '));
-    insightElement.innerHTML = `
-      <div class="card-body">
-        <h6 class="card-title ${colorClass.split(' ')[1]}">
-          <i class="bi bi-lightbulb me-1"></i>${insight.title}
-          ${insight.type ? `<span class="badge bg-light text-dark ms-2">${insight.type}</span>` : ''}
-        </h6>
-        <p class="card-text small">${insight.content}</p>
-        ${insight.action_items ? '<ul class="small">' + insight.action_items.map(item => `<li>${item}</li>`).join('') + '</ul>' : ''}
-        <small class="text-muted">Confidence: ${Math.round(insight.confidence * 100)}%</small>
-      </div>
-    `;
-    suggestionsContainer.appendChild(insightElement);
-    suggestionCount.textContent = parseInt(suggestionCount.textContent) + 1;
-  }
-
-  if (startBtn) {
-    startBtn.addEventListener('click', function() {
-      startBtn.disabled = true;
-      startBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Starting...';
-
-      fetch(`/incidents/<%= @incident.id %>/start_replay`, {
-        method: 'POST',
-        headers: {
-          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content,
-          'Content-Type': 'application/json'
-        }
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.message) {
-          startBtn.innerHTML = '<i class="bi bi-check me-1"></i>Replay Started';
-          startBtn.classList.remove('btn-primary');
-          startBtn.classList.add('btn-success');
-
-          // Periodically check for new data and process it
-          // Connect to ActionCable using global app variable
-          setTimeout(() => {
-            if (window.App) {
-              console.log('ActionCable available, creating subscription...');
-              const subscription = window.App.cable.subscriptions.create(
-                { channel: "SuggestionsChannel", incident_id: <%= @incident.id %> },
-                {
-                  connected() {
-                    console.log('Connected to SuggestionsChannel');
-                  },
-                  received(data) {
-                    console.log('Received data via ActionCable:', data);
-                    if (data.type === 'transcript_message') {
-                      addTranscriptMessage(data.data);
-                    } else if (data.type === 'ai_insight') {
-                      addInsight(data.data.insight);
-                    } else if (data.type === 'replay_complete') {
-                      startBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Complete';
-                      startBtn.classList.remove('btn-success');
-                      startBtn.classList.add('btn-outline-success');
-                    }
-                  }
-                }
-              );
-            } else {
-              console.error('ActionCable App not available');
-            }
-          }, 500);
-
-        } else {
-          startBtn.disabled = false;
-          startBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Start Replay';
-          alert('Error: ' + (data.error || 'Unknown error'));
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        startBtn.disabled = false;
-        startBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Start Replay';
-        alert('An error occurred while starting the replay.');
-      });
-    });
-  }
-
-  // Filter functionality
-  const filterInputs = document.querySelectorAll('input[name="filter"]');
-  
-  // Apply initial filter on page load
-  function applyFilter(filterValue) {
-    const suggestions = document.querySelectorAll('.suggestion-card');
-    let visibleCount = 0;
-
-    suggestions.forEach(suggestion => {
-      const shouldShow = filterValue === 'all' || 
-                        (filterValue === 'important' && suggestion.dataset.important === 'true') ||
-                        (filterValue !== 'important' && suggestion.dataset.category === filterValue);
-      
-      if (shouldShow) {
-        suggestion.style.display = 'block';
-        visibleCount++;
-      } else {
-        suggestion.style.display = 'none';
-      }
-    });
-    
-    // Update the count to show visible suggestions
-    const countBadge = document.getElementById('suggestion-count');
-    if (countBadge) {
-      countBadge.textContent = visibleCount;
-    }
-  }
-  
-  // Apply important filter on load
-  applyFilter('important');
-  
-  filterInputs.forEach(input => {
-    input.addEventListener('change', function() {
-      applyFilter(this.id);
-    });
-  });
-});
-</script>
