@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_07_28_080606) do
+ActiveRecord::Schema[7.2].define(version: 2025_07_28_082714) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -40,7 +40,6 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_28_080606) do
 
   create_table "suggestions", force: :cascade do |t|
     t.bigint "incident_id", null: false
-    t.string "category", null: false
     t.string "title", null: false
     t.text "description", null: false
     t.string "status", default: "pending"
@@ -50,10 +49,13 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_28_080606) do
     t.datetime "updated_at", null: false
     t.integer "importance_score", default: 50
     t.integer "trigger_message_sequence"
-    t.index ["category"], name: "index_suggestions_on_category"
+    t.string "speaker"
+    t.boolean "is_action_item", default: false
     t.index ["importance_score"], name: "index_suggestions_on_importance_score"
     t.index ["incident_id", "status"], name: "index_suggestions_on_incident_id_and_status"
     t.index ["incident_id"], name: "index_suggestions_on_incident_id"
+    t.index ["is_action_item"], name: "index_suggestions_on_is_action_item"
+    t.index ["speaker"], name: "index_suggestions_on_speaker"
   end
 
   create_table "tasks", force: :cascade do |t|

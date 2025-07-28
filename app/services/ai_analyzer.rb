@@ -27,6 +27,9 @@ class AiAnalyzer
       return []
     end
     
+    Rails.logger.info "[AI_ANALYZER] Making PRODUCTION LLM call to Google Gemini API"
+    Rails.logger.info "[AI_ANALYZER] Analyzing #{messages.count} messages from sequence #{messages.first.sequence_number} to #{messages.last.sequence_number}"
+    
     prompt = build_analysis_prompt(messages)
     
     # Format prompt correctly for gemini-rb gem

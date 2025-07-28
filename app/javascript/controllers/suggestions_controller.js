@@ -16,6 +16,7 @@ export default class extends Controller {
     
     // Apply initial filter on page load
     this.applyInitialFilter();
+    this.initializeModals();
   }
 
   connectToActionCable() {
@@ -285,6 +286,177 @@ export default class extends Controller {
     } catch (error) {
       console.error('Error updating suggestion:', error);
       alert('Failed to update suggestion. Please try again.');
+    }
+  }
+
+  initializeModals() {
+    // Create modals dynamically
+    this.createTaskModal();
+    this.createFlagModal();
+  }
+
+  createTaskModal() {
+    const modalHtml = `
+      <div class="modal fade" id="assignTaskModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Assign Task</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="taskForm">
+                <div class="mb-3">
+                  <label class="form-label">Assignee</label>
+                  <input type="text" class="form-control" id="taskAssignee" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Task Description</label>
+                  <textarea class="form-control" id="taskDescription" rows="3" required></textarea>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-primary" onclick="window.submitTask()">Create Task</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    window.submitTask = this.submitTask.bind(this);
+  }
+
+  createFlagModal() {
+    const modalHtml = `
+      <div class="modal fade" id="flagModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Flag Unusual Behavior</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="flagForm">
+                <div class="mb-3">
+                  <label class="form-label">What's the issue?</label>
+                  <select class="form-select" id="flagType" required>
+                    <option value="">Select issue type...</option>
+                    <option value="misbehavior">Participant misbehavior</option>
+                    <option value="technical">Technical issue with analysis</option>
+                    <option value="transcript">Transcript loading issue</option>
+                    <option value="ai_error">AI analysis error</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Description</label>
+                  <textarea class="form-control" id="flagDescription" rows="3" required></textarea>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Your Name (optional)</label>
+                  <input type="text" class="form-control" id="flagReporter">
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-warning" onclick="window.submitFlag()">Submit Flag</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    window.submitFlag = this.submitFlag.bind(this);
+  }
+
+  assignTask() {
+    const modal = new bootstrap.Modal(document.getElementById('assignTaskModal'));
+    modal.show();
+  }
+
+  flagUnusual() {
+    const modal = new bootstrap.Modal(document.getElementById('flagModal'));
+    modal.show();
+  }
+
+  exportSummary() {
+    window.location.href = `/incidents/${this.incidentIdValue}/export`;
+  }
+
+  async submitTask() {
+    const assignee = document.getElementById('taskAssignee').value;
+    const description = document.getElementById('taskDescription').value;
+
+    try {
+      const response = await fetch(`/incidents/${this.incidentIdValue}/tasks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+          task: { assignee, description }
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        bootstrap.Modal.getInstance(document.getElementById('assignTaskModal')).hide();
+        document.getElementById('taskForm').reset();
+        alert('Task created successfully!');
+      } else {
+        alert('Error: ' + (data.errors || ['Unknown error']).join(', '));
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+      alert('Failed to create task. Please try again.');
+    }
+  }
+
+  async submitFlag() {
+    const flagType = document.getElementById('flagType').value;
+    const description = document.getElementById('flagDescription').value;
+    const reporter = document.getElementById('flagReporter').value || 'Anonymous';
+
+    try {
+      const response = await fetch(`/incidents/${this.incidentIdValue}/flags`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+          flag: { flag_type: flagType, description, reporter }
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        bootstrap.Modal.getInstance(document.getElementById('flagModal')).hide();
+        document.getElementById('flagForm').reset();
+        alert('Flag submitted successfully!');
+      } else {
+        alert('Error: ' + (data.errors || ['Unknown error']).join(', '));
+      }
+    } catch (error) {
+      console.error('Error creating flag:', error);
+      alert('Failed to submit flag. Please try again.');
+    }
+  }
+
+  scrollToMessage(event) {
+    const sequence = event.currentTarget.dataset.sequence;
+    const messages = this.transcriptContainerTarget.querySelectorAll('.transcript-message');
+    
+    if (messages[sequence - 1]) {
+      messages[sequence - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      messages[sequence - 1].classList.add('bg-warning', 'bg-opacity-25');
+      setTimeout(() => {
+        messages[sequence - 1].classList.remove('bg-warning', 'bg-opacity-25');
+      }, 2000);
     }
   }
 }

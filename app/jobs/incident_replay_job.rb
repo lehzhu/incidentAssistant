@@ -5,6 +5,7 @@ class IncidentReplayJob
   sidekiq_options retry: false # Don't retry this job if it fails midway
 
   def perform(incident_id)
+    Rails.logger.info "[REPLAY] Starting IncidentReplayJob for incident #{incident_id}"
     @incident = Incident.find(incident_id)
     @ai_analyzer = AiAnalyzer.new
     
