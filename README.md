@@ -4,7 +4,6 @@
 1. **Clone the repository**
    ```
    git clone https://github.com/lehzhu/incidentAssistant.git
-   cd incidentAssistant
    ```
 2. **Install dependencies and set up the database**
    ```
