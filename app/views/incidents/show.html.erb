@@ -1,177 +1,184 @@
 <!-- app/views/incidents/show.html.erb -->
-<div class="row" data-controller="suggestions" data-suggestions-incident-id-value="<%= @incident.id %>">
-  <div class="col-lg-8">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
+<div class="container-fluid" data-controller="suggestions" data-suggestions-incident-id-value="<%= @incident.id %>">
+  <!-- Header Bar -->
+  <div class="row mb-3">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
         <div>
-          <h5 class="card-title mb-0"><%= @incident.title %></h5>
+          <h4 class="mb-0"><%= @incident.title %></h4>
           <% if @incident.description.present? %>
             <small class="text-muted"><%= @incident.description %></small>
           <% end %>
         </div>
-        <div class="text-end">
-          <span class="badge bg-<%= @incident.status == 'resolved' ? 'success' : 'warning' %> mb-1">
-            <%= @incident.status&.humanize || 'Unknown' %>
-          </span>
-          <% unless @incident.resolved? %>
-            <button id="start-replay-btn" class="btn btn-primary btn-sm"
-                    data-action="click->suggestions#startReplay"
-                    data-suggestions-target="replayButton">
-              <i class="bi bi-play-fill me-1"></i>
-              Start Replay
-            </button>
-          <% end %>
+        <div>
+          <button id="start-replay-btn" class="btn btn-primary"
+                  data-action="click->suggestions#startReplay"
+                  data-suggestions-target="replayButton">
+            <i class="bi bi-<%= @incident.resolved? ? 'arrow-clockwise' : 'play-fill' %> me-1"></i>
+            <%= @incident.resolved? ? 'Replay Demo' : 'Start Replay' %>
+          </button>
         </div>
       </div>
-      <div class="card-body">
-        <% unless @incident.resolved? %>
-          <div class="progress mb-3" style="height: 8px;">
-            <div class="progress-bar" role="progressbar" 
-                 style="width: <%= @progress %>%" 
-                 id="progress-bar"
-                 data-suggestions-target="progressBar">
-              <%= @progress %>%
-            </div>
-          </div>
-        <% end %>
-        
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="mb-0">
-            <i class="bi bi-lightbulb me-2"></i>
-            AI Suggestions
-            <span class="badge bg-primary ms-2" id="suggestion-count" data-suggestions-target="suggestionCount"><%= @suggestions.count %></span>
-          </h6>
-          <div class="btn-group btn-group-sm" role="group">
-            <input type="radio" class="btn-check" name="filter" id="important" checked
-                   data-action="change->suggestions#applyFilter">
-            <label class="btn btn-outline-danger" for="important">Important</label>
-            
-            <input type="radio" class="btn-check" name="filter" id="action_item"
-                   data-action="change->suggestions#applyFilter">
-            <label class="btn btn-outline-primary" for="action_item">Actions</label>
-            
-            <input type="radio" class="btn-check" name="filter" id="timeline_event"
-                   data-action="change->suggestions#applyFilter">
-            <label class="btn btn-outline-success" for="timeline_event">Timeline</label>
-            
-            <input type="radio" class="btn-check" name="filter" id="root_cause"
-                   data-action="change->suggestions#applyFilter">
-            <label class="btn btn-outline-warning" for="root_cause">Root Cause</label>
-            
-            <input type="radio" class="btn-check" name="filter" id="missing_info"
-                   data-action="change->suggestions#applyFilter">
-            <label class="btn btn-outline-info" for="missing_info">Missing Info</label>
-            
-            <input type="radio" class="btn-check" name="filter" id="all"
-                   data-action="change->suggestions#applyFilter">
-            <label class="btn btn-outline-secondary" for="all">All</label>
+      <% unless @incident.resolved? %>
+        <div class="progress mt-2" style="height: 6px;">
+          <div class="progress-bar" role="progressbar" 
+               style="width: <%= @progress %>%" 
+               data-suggestions-target="progressBar">
           </div>
         </div>
-        
-        <div id="suggestions-container" data-suggestions-target="container">
-          
-          <% if @suggestions.any? %>
-            <% @suggestions.each do |suggestion| %>
-              <%= render 'suggestion_card', suggestion: suggestion %>
-            <% end %>
-          <% else %>
-            <div id="no-suggestions" class="text-center py-5">
-              <i class="bi bi-robot display-1 text-muted"></i>
-              <h6 class="mt-3 text-muted">No suggestions yet</h6>
-              <p class="text-muted small">Start the replay to begin AI analysis of the incident transcript.</p>
-            </div>
-          <% end %>
-        </div>
-      </div>
+      <% end %>
     </div>
   </div>
-  
-  <div class="col-lg-4">
-    <div class="card mb-3">
-      <div class="card-header">
-        <h6 class="card-title mb-0">
-          <i class="bi bi-chat-left-text me-2"></i>
-          Live Transcript
-          <span class="badge bg-secondary ms-2" id="transcript-count" data-suggestions-target="transcriptCount">0</span>
-        </h6>
-      </div>
-      <div class="card-body" style="max-height: 300px; overflow-y: auto;">
-        <div id="transcript-container" data-suggestions-target="transcriptContainer">
-          <div class="text-center py-3 text-muted" id="transcript-placeholder">
-            <i class="bi bi-mic-mute"></i>
-            <p class="small mb-0">Transcript will appear here during replay</p>
+
+  <!-- Three Column Layout -->
+  <div class="row">
+    <!-- Left Column: Live Transcript -->
+    <div class="col-lg-3">
+      <div class="card h-100">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-chat-left-text me-2"></i>
+            Live Transcript
+            <span class="badge bg-secondary ms-2" data-suggestions-target="transcriptCount">0</span>
+          </h6>
+        </div>
+        <div class="card-body p-0" style="height: calc(100vh - 250px); overflow-y: auto;">
+          <div id="transcript-container" data-suggestions-target="transcriptContainer" class="p-3">
+            <div class="text-center py-5 text-muted" id="transcript-placeholder">
+              <i class="bi bi-mic-mute display-4"></i>
+              <p class="small mt-3">Transcript will appear here during replay</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
-    
-    <div class="card">
-      <div class="card-header">
-        <h6 class="card-title mb-0">
-          <i class="bi bi-info-circle me-2"></i>
-          Incident Details
-        </h6>
-      </div>
-      <div class="card-body">
-        <dl class="row small">
-          <dt class="col-sm-5">Status:</dt>
-          <dd class="col-sm-7">
-            <span class="badge bg-<%= @incident.status == 'resolved' ? 'success' : 'warning' %>">
-              <%= @incident.status&.humanize || 'Unknown' %>
-            </span>
-          </dd>
-          
-          <dt class="col-sm-5">Created:</dt>
-          <dd class="col-sm-7"><%= @incident.created_at.strftime('%b %d, %Y at %I:%M %p') %></dd>
-          
-          <dt class="col-sm-5">Messages:</dt>
-          <dd class="col-sm-7">
-            <%= @incident.total_messages %>
-          </dd>
-          
-          <dt class="col-sm-5">Suggestions:</dt>
-          <dd class="col-sm-7">
-            <span class="badge bg-secondary"><%= @incident.suggestions.count %></span>
-          </dd>
-        </dl>
-        
-        <% if @incident.suggestions.any? %>
-          <hr>
-          <h6 class="small text-muted mb-2">Suggestion Breakdown</h6>
-          <% Suggestion::CATEGORIES.each do |category| %>
-            <% count = @incident.suggestions.by_category(category).count %>
-            <% next if count.zero? %>
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="small"><%= category.humanize.titleize %></span>
-              <span class="badge bg-light text-dark"><%= count %></span>
+
+    <!-- Center Column: AI Suggestions (Most Important) -->
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header bg-primary text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+              <i class="bi bi-lightbulb me-2"></i>
+              AI Insights
+              <span class="badge bg-white text-primary ms-2" data-suggestions-target="suggestionCount"><%= @suggestions.count %></span>
+            </h6>
+            <div class="btn-group btn-group-sm" role="group">
+              <input type="radio" class="btn-check" name="filter" id="important" checked
+                     data-action="change->suggestions#applyFilter">
+              <label class="btn btn-outline-light" for="important">Important</label>
+              
+              <input type="radio" class="btn-check" name="filter" id="action_item"
+                     data-action="change->suggestions#applyFilter">
+              <label class="btn btn-outline-light" for="action_item">Actions</label>
+              
+              <input type="radio" class="btn-check" name="filter" id="timeline_event"
+                     data-action="change->suggestions#applyFilter">
+              <label class="btn btn-outline-light" for="timeline_event">Timeline</label>
+              
+              <input type="radio" class="btn-check" name="filter" id="root_cause"
+                     data-action="change->suggestions#applyFilter">
+              <label class="btn btn-outline-light" for="root_cause">Root Cause</label>
+              
+              <input type="radio" class="btn-check" name="filter" id="all"
+                     data-action="change->suggestions#applyFilter">
+              <label class="btn btn-outline-light" for="all">All</label>
             </div>
-          <% end %>
-        <% end %>
+          </div>
+        </div>
+        <div class="card-body" style="height: calc(100vh - 250px); overflow-y: auto;">
+          <div id="suggestions-container" data-suggestions-target="container">
+            <% if @suggestions.any? %>
+              <% @suggestions.each do |suggestion| %>
+                <%= render 'suggestion_card', suggestion: suggestion %>
+              <% end %>
+            <% else %>
+              <div id="no-suggestions" class="text-center py-5">
+                <i class="bi bi-robot display-1 text-muted"></i>
+                <h5 class="mt-3 text-muted">AI Analysis Ready</h5>
+                <p class="text-muted">Click "Start Replay" to begin analyzing the incident transcript.</p>
+              </div>
+            <% end %>
+          </div>
+        </div>
       </div>
     </div>
-    
-    <div class="card mt-3">
-      <div class="card-header">
-        <h6 class="card-title mb-0">
-          <i class="bi bi-speedometer2 me-2"></i>
-          Replay Status
-        </h6>
-      </div>
-      <div class="card-body">
-        <% if @incident.resolved? %>
-          <div class="alert alert-success">
-            <i class="bi bi-check-circle me-2"></i>
-            <strong>Replay Complete!</strong><br>
-            All messages have been analyzed.
+
+    <!-- Right Column: Actions & Details -->
+    <div class="col-lg-3">
+      <!-- Quick Actions -->
+      <div class="card mb-3">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-lightning me-2"></i>
+            Quick Actions
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <button class="btn btn-outline-primary btn-sm" data-action="click->suggestions#assignTask">
+              <i class="bi bi-person-plus me-1"></i> Assign Task
+            </button>
+            <button class="btn btn-outline-warning btn-sm" data-action="click->suggestions#flagUnusual">
+              <i class="bi bi-flag me-1"></i> Flag Unusual Behavior
+            </button>
+            <button class="btn btn-outline-info btn-sm" data-action="click->suggestions#exportSummary">
+              <i class="bi bi-download me-1"></i> Export Summary
+            </button>
           </div>
-        <% else %>
-          <div class="alert alert-info">
-            <i class="bi bi-clock me-2"></i>
-            <strong>Ready for Replay</strong><br>
-            Click "Start Replay" to begin AI analysis.
-          </div>
-        <% end %>
+        </div>
       </div>
+
+      <!-- Incident Details -->
+      <div class="card mb-3">
+        <div class="card-header bg-light">
+          <h6 class="mb-0">
+            <i class="bi bi-info-circle me-2"></i>
+            Incident Details
+          </h6>
+        </div>
+        <div class="card-body">
+          <dl class="row small mb-0">
+            <dt class="col-6">Status:</dt>
+            <dd class="col-6">
+              <span class="badge bg-<%= @incident.status == 'resolved' ? 'success' : 'warning' %>">
+                <%= @incident.status&.humanize || 'Unknown' %>
+              </span>
+            </dd>
+            
+            <dt class="col-6">Created:</dt>
+            <dd class="col-6"><%= @incident.created_at.strftime('%b %d, %I:%M %p') %></dd>
+            
+            <dt class="col-6">Messages:</dt>
+            <dd class="col-6"><%= @incident.total_messages %></dd>
+            
+            <dt class="col-6">Duration:</dt>
+            <dd class="col-6"><%= (@incident.total_messages * @incident.processing_interval_seconds / 60).round %>min</dd>
+          </dl>
+        </div>
+      </div>
+
+      <!-- Suggestion Stats -->
+      <% if @incident.suggestions.any? %>
+        <div class="card">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">
+              <i class="bi bi-graph-up me-2"></i>
+              Insight Statistics
+            </h6>
+          </div>
+          <div class="card-body">
+            <% Suggestion::CATEGORIES.each do |category| %>
+              <% count = @incident.suggestions.by_category(category).count %>
+              <% next if count.zero? %>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small"><%= category.humanize.titleize %></span>
+                <span class="badge bg-secondary"><%= count %></span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
     </div>
   </div>
 </div>

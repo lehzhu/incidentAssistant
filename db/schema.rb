@@ -10,9 +10,19 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_07_08_071447) do
+ActiveRecord::Schema[7.2].define(version: 2025_07_28_080606) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "flags", force: :cascade do |t|
+    t.bigint "incident_id", null: false
+    t.string "flag_type"
+    t.text "description"
+    t.string "reporter"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["incident_id"], name: "index_flags_on_incident_id"
+  end
 
   create_table "incidents", force: :cascade do |t|
     t.string "title", null: false
@@ -39,10 +49,21 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_08_071447) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "importance_score", default: 50
+    t.integer "trigger_message_sequence"
     t.index ["category"], name: "index_suggestions_on_category"
     t.index ["importance_score"], name: "index_suggestions_on_importance_score"
     t.index ["incident_id", "status"], name: "index_suggestions_on_incident_id_and_status"
     t.index ["incident_id"], name: "index_suggestions_on_incident_id"
+  end
+
+  create_table "tasks", force: :cascade do |t|
+    t.bigint "incident_id", null: false
+    t.string "assignee"
+    t.text "description"
+    t.string "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["incident_id"], name: "index_tasks_on_incident_id"
   end
 
   create_table "transcript_messages", force: :cascade do |t|
@@ -59,6 +80,8 @@ ActiveRecord::Schema[7.2].define(version: 2025_07_08_071447) do
     t.index ["processed"], name: "index_transcript_messages_on_processed"
   end
 
+  add_foreign_key "flags", "incidents"
   add_foreign_key "suggestions", "incidents"
+  add_foreign_key "tasks", "incidents"
   add_foreign_key "transcript_messages", "incidents"
 end
