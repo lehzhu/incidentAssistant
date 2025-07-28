@@ -54,6 +54,7 @@
 
 ## How to Simulate the Replay
 - Ensure `transcript.json` is in the project root.
+- Custom upload of the transcript will be in version 0.3.0-beta
 
 ## Decisions Made
 - Used Ruby on Rails for fast development with PostgreSQL
@@ -62,8 +63,14 @@
 - Gemini 1.5 Flash AI insights for best speed and cost
 
 ## Improvements and Time Spent
-I spent 6 hours on this project as I wanted enough time to learn Rails but still timeboxed and focused on a straightforward MVP
+I spent 6 hours on this project initially as I wanted enough time to learn Rails but still timeboxed and focused on a straightforward MVP. 
 
-With more time, I'd focus on a better analytics engine. I would use Mem0 and/or a more robust Agent framework that understands semantic knowledge better. I could even implement graph based knowledge systems like Neo4j that would represent the knowledge relationships that occur during the incident. 
+There was a lot of issues with both my decisions and my structuring of the backend. I revisited the AI insights functionality a few days later, but it was still unstable. 
 
-Capturing tacit knowledge and temporal understanding is extremely important, and I've worked on these key issues for the past year, so it would be very fun to integrate them into this! 
+A few weeks later, I decided to rewrite the database system using a much more robust system using a lot of what I've learned building other backend systems recently. I spent 5 additional hours on the rewrite and released it as v.0.3.0-beta. 
+
+Planned features are in issues, but the main one is company or team specific histories. Issues that occur consistently across incidents should be flagged, for example. Retrieving this data should be done with ZeroEntropy for maximum speed and specificity. 
+
+Voice agents are also a helpful addition if the reviewing engineer is not in a position to appropriately read the report/dashboard (ie. out and about). 
+
+
