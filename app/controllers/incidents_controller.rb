@@ -7,7 +7,7 @@ class IncidentsController < ApplicationController
   end
   
   def show
-    @suggestions = @incident.suggestions.recent.limit(50)
+    @suggestions = @incident.suggestions.chronological_desc.limit(50)
     @recent_messages = @incident.transcript_messages.ordered.limit(20)
     @progress = 0  # Initialize progress for now
   end

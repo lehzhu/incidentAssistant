@@ -38,7 +38,7 @@
         </button>
         <button type="button" 
                 class="btn btn-outline-danger btn-sm"
-                onclick="updateSuggestion(<%= suggestion.id %>, 'dismissed')"
+                onclick="if(confirm('Are you sure you want to dismiss this suggestion?')) { updateSuggestion(<%= suggestion.id %>, 'dismissed') }"
                 title="Dismiss suggestion">
           <i class="bi bi-x"></i>
         </button>

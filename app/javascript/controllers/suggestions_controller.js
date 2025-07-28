@@ -59,6 +59,17 @@ export default class extends Controller {
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Starting...';
 
+    // Clear existing transcript and suggestions
+    this.clearTranscriptAndSuggestions();
+    
+    // Reset progress bar
+    this.progressBarTarget.style.width = '0%';
+    this.progressBarTarget.classList.remove('bg-success');
+    
+    // Reset counts
+    this.transcriptCountTarget.textContent = '0';
+    this.suggestionCountTarget.textContent = '0';
+
     fetch(`/incidents/${this.incidentIdValue}/start_replay`, {
       method: 'POST',
       headers: {
@@ -173,7 +184,7 @@ export default class extends Controller {
             </button>
             <button type="button" 
                     class="btn btn-outline-danger btn-sm"
-                    onclick="updateSuggestion(${suggestion.id}, 'dismissed')"
+                    onclick="if(confirm('Are you sure you want to dismiss this suggestion?')) { updateSuggestion(${suggestion.id}, 'dismissed') }"
                     title="Dismiss suggestion">
               <i class="bi bi-x"></i>
             </button>
@@ -291,6 +302,64 @@ export default class extends Controller {
       console.error('Error updating suggestion:', error);
       alert('Failed to update suggestion. Please try again.');
     }
+  }
+
+  // Sort suggestions
+  sortBy(event) {
+    const sortMethod = event.target.dataset.sort;
+    let sortedSuggestions = Array.from(this.containerTarget.querySelectorAll('.suggestion-card'));
+
+    sortedSuggestions.sort((a, b) => {
+      switch (sortMethod) {
+        case 'chronological_asc':
+          return new Date(a.dataset.createdAt) - new Date(b.dataset.createdAt);
+        case 'chronological_desc':
+          return new Date(b.dataset.createdAt) - new Date(a.dataset.createdAt);
+        case 'importance_desc':
+          return b.dataset.importance - a.dataset.importance;
+        case 'importance_asc':
+          return a.dataset.importance - b.dataset.importance;
+        case 'by_speaker':
+          return a.dataset.speaker.localeCompare(b.dataset.speaker);
+        default:
+          return 0;
+      }
+    });
+
+    sortedSuggestions.forEach(suggestion => this.containerTarget.appendChild(suggestion));
+  }
+
+  // Toggle action items only
+  toggleActionItems() {
+    const button = this.actionToggleTarget;
+    const isActive = button.classList.contains('active');
+    
+    if (isActive) {
+      // Deactivate: show all items
+      button.classList.remove('active');
+      button.classList.remove('btn-primary');
+      button.classList.add('btn-outline-light');
+      
+      this.containerTarget.querySelectorAll('.suggestion-card').forEach(card => {
+        card.style.display = '';
+      });
+    } else {
+      // Activate: show only action items
+      button.classList.add('active');
+      button.classList.remove('btn-outline-light');
+      button.classList.add('btn-primary');
+      
+      this.containerTarget.querySelectorAll('.suggestion-card').forEach(card => {
+        if (card.dataset.isActionItem === 'true') {
+          card.style.display = '';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+    
+    // Update suggestion count
+    this.updateSuggestionCount();
   }
 
   initializeModals() {
@@ -461,6 +530,34 @@ export default class extends Controller {
       setTimeout(() => {
         messages[sequence - 1].classList.remove('bg-warning', 'bg-opacity-25');
       }, 2000);
+    }
+  }
+  
+  clearTranscriptAndSuggestions() {
+    // Clear transcript
+    this.transcriptContainerTarget.innerHTML = `
+      <div class="text-center py-5 text-muted" id="transcript-placeholder">
+        <i class="bi bi-mic-mute display-4"></i>
+        <p class="small mt-3">Transcript will appear here during replay</p>
+      </div>
+    `;
+    
+    // Clear suggestions
+    this.containerTarget.innerHTML = `
+      <div id="no-suggestions" class="text-center py-5">
+        <i class="bi bi-robot display-1 text-muted"></i>
+        <h5 class="mt-3 text-muted">AI Analysis Running</h5>
+        <p class="text-muted">AI insights will appear here as the transcript is analyzed.</p>
+      </div>
+    `;
+    
+    // Clear summary  
+    if (this.summaryContainerTarget) {
+      this.summaryContainerTarget.innerHTML = `
+        <p class="text-muted small" id="summary-placeholder">
+          Summary will be generated after transcript analysis completes.
+        </p>
+      `;
     }
   }
 }
