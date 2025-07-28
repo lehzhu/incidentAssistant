@@ -23,4 +23,8 @@ class Suggestion < ApplicationRecord
   def high_priority?
     importance_score.to_i >= 70
   end
+  
+  def important?
+    high_priority?
+  end
 end

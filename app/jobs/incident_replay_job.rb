@@ -74,17 +74,25 @@ class IncidentReplayJob
     ai_suggestions = @ai_analyzer.analyze_transcript_chunk(context_messages)
     
     ai_suggestions.each do |ai_suggestion|
-      # Deduplication logic
-      suggestion_key = "#{ai_suggestion['category']}_#{ai_suggestion['title']}"
+      # Deduplication logic - use title only since we don't have category anymore
+      suggestion_key = "#{ai_suggestion['title']}"
       next if @created_suggestions.include?(suggestion_key)
       
-      # Create suggestion in database
+      # Determine if this is an action item based on category
+      is_action_item = ai_suggestion['category'] == 'action_item'
+      
+      # Get speaker from context (last message speaker)
+      speaker = context_messages.last&.speaker
+      
+      # Create suggestion in database without category field
       suggestion = @incident.suggestions.create!(
-        category: ai_suggestion['category'],
         title: ai_suggestion['title'],
         description: ai_suggestion['description'],
         status: :pending,
-        importance_score: ai_suggestion['importance'] || 50
+        importance_score: ai_suggestion['importance'] || 50,
+        is_action_item: is_action_item,
+        speaker: speaker,
+        trigger_message_sequence: context_messages.last&.sequence_number
       )
       @created_suggestions.add(suggestion_key)
       
@@ -93,7 +101,10 @@ class IncidentReplayJob
         "incident_#{@incident.id}_suggestions",
         {
           type: 'ai_suggestion',
-          data: { suggestion: suggestion.as_json(methods: :important?) } 
+          data: { 
+            suggestion: suggestion.as_json(methods: [:important?, :critical?, :high_priority?]),
+            category: ai_suggestion['category'] # Send category for UI display
+          } 
         }
       )
     end

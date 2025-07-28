@@ -14,6 +14,7 @@ export default class extends Controller {
     this.connectToActionCable();
     // This is a global function, which is not ideal. We'll leave it for now but it's a candidate for refactoring.
     window.updateSuggestion = this.updateSuggestionStatus.bind(this);
+    window.scrollToMessage = this.scrollToMessage.bind(this);
     
     // Apply initial filter on page load
     this.applyInitialFilter();
@@ -55,6 +56,9 @@ export default class extends Controller {
 
   // Start replay action
   startReplay(event) {
+    console.log('startReplay called');
+    event.preventDefault();
+    
     const button = this.replayButtonTarget;
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Starting...';
@@ -62,9 +66,11 @@ export default class extends Controller {
     // Clear existing transcript and suggestions
     this.clearTranscriptAndSuggestions();
     
-    // Reset progress bar
-    this.progressBarTarget.style.width = '0%';
-    this.progressBarTarget.classList.remove('bg-success');
+    // Reset progress bar if it exists
+    if (this.hasProgressBarTarget) {
+      this.progressBarTarget.style.width = '0%';
+      this.progressBarTarget.classList.remove('bg-success');
+    }
     
     // Reset counts
     this.transcriptCountTarget.textContent = '0';
@@ -129,7 +135,9 @@ export default class extends Controller {
     // Update count and progress bar
     this.transcriptCountTarget.textContent = message.sequence;
     const progress = (message.sequence / this.totalMessages) * 100;
-    this.progressBarTarget.style.width = `${progress}%`;
+    if (this.hasProgressBarTarget) {
+      this.progressBarTarget.style.width = `${progress}%`;
+    }
   }
 
   addSuggestion(suggestion) {
@@ -230,8 +238,10 @@ export default class extends Controller {
   }
 
   showCompletionMessage() {
-    this.progressBarTarget.style.width = '100%';
-    this.progressBarTarget.classList.add('bg-success');
+    if (this.hasProgressBarTarget) {
+      this.progressBarTarget.style.width = '100%';
+      this.progressBarTarget.classList.add('bg-success');
+    }
 
     // Update button state
     const button = this.replayButtonTarget;
@@ -520,8 +530,12 @@ export default class extends Controller {
     }
   }
 
-  scrollToMessage(event) {
-    const sequence = event.currentTarget.dataset.sequence;
+  scrollToMessage(sequence) {
+    // If called from event, extract sequence from event
+    if (sequence && sequence.currentTarget) {
+      sequence = sequence.currentTarget.dataset.sequence;
+    }
+    
     const messages = this.transcriptContainerTarget.querySelectorAll('.transcript-message');
     
     if (messages[sequence - 1]) {
