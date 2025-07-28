@@ -36,3 +36,5 @@
 redis_data_export.md
 REDIS_ISOLATION_GUIDE.md
 redis_data_export.json
+*.rdb
+dump.rdb

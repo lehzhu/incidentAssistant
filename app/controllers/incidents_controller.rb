@@ -1,5 +1,5 @@
 class IncidentsController < ApplicationController
-  before_action :set_incident, only: [:show, :start_replay]
+  before_action :set_incident, only: [:show, :start_replay, :export]
   skip_before_action :verify_authenticity_token, only: [:start_replay]
   
   def index
@@ -7,7 +7,7 @@ class IncidentsController < ApplicationController
   end
   
   def show
-    @suggestions = @incident.suggestions.recent.limit(50)
+    @suggestions = @incident.suggestions.chronological_desc.limit(50)
     @recent_messages = @incident.transcript_messages.ordered.limit(20)
     @progress = 0  # Initialize progress for now
   end
@@ -28,21 +28,43 @@ class IncidentsController < ApplicationController
   end
   
   def start_replay
-    if @incident.active?
-      # Check if a job is already running for this incident
-      cache_key = "incident_replay_running_#{@incident.id}"
-      
-      if Rails.cache.read(cache_key)
-        render json: { error: 'Transcript replay is already running for this incident.' }
-      else
-        # Set a cache flag for 5 minutes (longer than expected job duration)
-        Rails.cache.write(cache_key, true, expires_in: 5.minutes)
-        IncidentReplayJob.perform_async(@incident.id)
-        render json: { message: 'Transcript replay started! Watch for AI insights.' }
-      end
+    # Check if a job is already running for this incident
+    cache_key = "incident_replay_running_#{@incident.id}"
+    
+    if Rails.cache.read(cache_key)
+      render json: { error: 'Transcript replay is already running for this incident.' }
     else
-      render json: { error: 'Incident has already been processed.' }
+      # For demo purposes, reset the incident if it's resolved
+      if @incident.resolved?
+        Rails.logger.info "[REPLAY] Resetting resolved incident #{@incident.id} for demo replay"
+        @incident.update!(status: :active, replay_completed: false)
+        @incident.suggestions.destroy_all # Clear previous suggestions for clean replay
+      end
+      
+      # Set a cache flag for 5 minutes (longer than expected job duration)
+      Rails.cache.write(cache_key, true, expires_in: 5.minutes)
+      
+      Rails.logger.info "[REPLAY] Starting IncidentReplayJob for incident #{@incident.id}"
+      IncidentReplayJob.perform_async(@incident.id)
+      
+      render json: { message: 'Transcript replay started! Watch for AI insights.' }
     end
+  end
+
+  def export
+    export_data = {
+      incident: {
+        title: @incident.title,
+        description: @incident.description,
+        created_at: @incident.created_at,
+        status: @incident.status
+      },
+      suggestions: @incident.suggestions.as_json(only: [:category, :title, :description, :importance_score]),
+      tasks: @incident.tasks.as_json(only: [:assignee, :description, :status]),
+      flags: @incident.flags.as_json(only: [:flag_type, :description, :reporter])
+    }
+
+    send_data export_data.to_json, filename: "incident_#{@incident.id}_export.json", type: :json
   end
   
   private

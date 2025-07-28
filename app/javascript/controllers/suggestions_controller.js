@@ -3,7 +3,8 @@ import { createConsumer } from "@rails/actioncable"
 
 export default class extends Controller {
   static targets = [
-    "container", "progressBar", "transcriptContainer", "transcriptCount", "suggestionCount", "replayButton"
+    "container", "progressBar", "transcriptContainer", "transcriptCount", "suggestionCount", "replayButton",
+    "actionToggle", "summaryContainer", "totalCount", "actionCount", "criticalCount"
   ]
   static values = { incidentId: Number }
 
@@ -13,9 +14,11 @@ export default class extends Controller {
     this.connectToActionCable();
     // This is a global function, which is not ideal. We'll leave it for now but it's a candidate for refactoring.
     window.updateSuggestion = this.updateSuggestionStatus.bind(this);
+    window.scrollToMessage = this.scrollToMessage.bind(this);
     
     // Apply initial filter on page load
     this.applyInitialFilter();
+    this.initializeModals();
   }
 
   connectToActionCable() {
@@ -53,9 +56,25 @@ export default class extends Controller {
 
   // Start replay action
   startReplay(event) {
+    console.log('startReplay called');
+    event.preventDefault();
+    
     const button = this.replayButtonTarget;
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Starting...';
+
+    // Clear existing transcript and suggestions
+    this.clearTranscriptAndSuggestions();
+    
+    // Reset progress bar if it exists
+    if (this.hasProgressBarTarget) {
+      this.progressBarTarget.style.width = '0%';
+      this.progressBarTarget.classList.remove('bg-success');
+    }
+    
+    // Reset counts
+    this.transcriptCountTarget.textContent = '0';
+    this.suggestionCountTarget.textContent = '0';
 
     fetch(`/incidents/${this.incidentIdValue}/start_replay`, {
       method: 'POST',
@@ -116,7 +135,9 @@ export default class extends Controller {
     // Update count and progress bar
     this.transcriptCountTarget.textContent = message.sequence;
     const progress = (message.sequence / this.totalMessages) * 100;
-    this.progressBarTarget.style.width = `${progress}%`;
+    if (this.hasProgressBarTarget) {
+      this.progressBarTarget.style.width = `${progress}%`;
+    }
   }
 
   addSuggestion(suggestion) {
@@ -141,31 +162,25 @@ export default class extends Controller {
   }
 
   createSuggestionHTML(suggestion) {
-    const categoryConfigs = {
-      'action_item': { color: 'primary', icon: 'check-square' },
-      'timeline_event': { color: 'success', icon: 'clock-history' },
-      'root_cause': { color: 'warning', icon: 'search' },
-      'missing_info': { color: 'info', icon: 'info-circle' }
-    }
-    
-    const config = categoryConfigs[suggestion.category] || { color: 'secondary', icon: 'question' }
-    const isImportant = suggestion.importance_score >= 70
+    const isCritical = suggestion.importance_score >= 90
+    const isActionItem = suggestion.is_action_item
+    const borderColor = isCritical ? 'danger' : (isActionItem ? 'primary' : 'secondary')
     
     return `
-      <div class="suggestion-card border-start border-${config.color} border-3 bg-white m-3 p-3 rounded shadow-sm" 
+      <div class="suggestion-card border-start border-${borderColor} border-3 bg-white m-3 p-3 rounded shadow-sm" 
            id="suggestion-${suggestion.id}"
            data-suggestion-id="${suggestion.id}"
-           data-category="${suggestion.category}"
-           data-important="${isImportant}"
+           data-is-action-item="${isActionItem}"
+           data-importance="${suggestion.importance_score}"
+           data-speaker="${suggestion.speaker || ''}"
+           data-created-at="${suggestion.created_at}"
            style="opacity: 0; transform: translateY(-20px);">
         
         <div class="d-flex justify-content-between align-items-start mb-2">
           <div>
-            <span class="badge bg-${config.color} bg-opacity-10 text-${config.color} border border-${config.color}">
-              <i class="bi bi-${config.icon} me-1"></i>
-              ${suggestion.category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-            </span>
-            ${isImportant ? '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger ms-1" title="Important"><i class="bi bi-exclamation-triangle-fill"></i></span>' : ''}
+            ${isActionItem ? '<span class="badge bg-primary bg-opacity-10 text-primary border border-primary"><i class="bi bi-check-square me-1"></i>Action Item</span>' : ''}
+            ${isCritical ? '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger ms-1" title="Critical"><i class="bi bi-exclamation-triangle-fill"></i> Critical</span>' : ''}
+            ${suggestion.speaker ? `<span class="badge bg-light text-dark border ms-1"><i class="bi bi-person me-1"></i>${suggestion.speaker}</span>` : ''}
           </div>
           
           <div class="btn-group btn-group-sm" role="group">
@@ -177,7 +192,7 @@ export default class extends Controller {
             </button>
             <button type="button" 
                     class="btn btn-outline-danger btn-sm"
-                    onclick="updateSuggestion(${suggestion.id}, 'dismissed')"
+                    onclick="if(confirm('Are you sure you want to dismiss this suggestion?')) { updateSuggestion(${suggestion.id}, 'dismissed') }"
                     title="Dismiss suggestion">
               <i class="bi bi-x"></i>
             </button>
@@ -185,16 +200,25 @@ export default class extends Controller {
         </div>
         
         <h6 class="fw-bold mb-2 text-dark">${suggestion.title}</h6>
-        <p class="text-muted small mb-0 lh-sm">${suggestion.description}</p>
+        <p class="text-muted small mb-2 lh-sm">${suggestion.description}</p>
         
-        ${suggestion.confidence_score ? `
-          <div class="mt-2">
+        <div class="d-flex justify-content-between align-items-center mt-2">
+          <div>
+            ${suggestion.trigger_message_sequence ? `
+              <button class="btn btn-link btn-sm p-0 text-decoration-none" 
+                      onclick="window.scrollToMessage(${suggestion.trigger_message_sequence})">
+                <i class="bi bi-chat-quote me-1"></i>
+                View in transcript
+              </button>
+            ` : ''}
+          </div>
+          <div>
             <small class="text-muted">
               <i class="bi bi-speedometer me-1"></i>
-              Confidence: ${suggestion.confidence_score}%
+              ${suggestion.importance_score}%
             </small>
           </div>
-        ` : ''}
+        </div>
       </div>
     `
   }
@@ -214,8 +238,10 @@ export default class extends Controller {
   }
 
   showCompletionMessage() {
-    this.progressBarTarget.style.width = '100%';
-    this.progressBarTarget.classList.add('bg-success');
+    if (this.hasProgressBarTarget) {
+      this.progressBarTarget.style.width = '100%';
+      this.progressBarTarget.classList.add('bg-success');
+    }
 
     // Update button state
     const button = this.replayButtonTarget;
@@ -285,6 +311,267 @@ export default class extends Controller {
     } catch (error) {
       console.error('Error updating suggestion:', error);
       alert('Failed to update suggestion. Please try again.');
+    }
+  }
+
+  // Sort suggestions
+  sortBy(event) {
+    const sortMethod = event.target.dataset.sort;
+    let sortedSuggestions = Array.from(this.containerTarget.querySelectorAll('.suggestion-card'));
+
+    sortedSuggestions.sort((a, b) => {
+      switch (sortMethod) {
+        case 'chronological_asc':
+          return new Date(a.dataset.createdAt) - new Date(b.dataset.createdAt);
+        case 'chronological_desc':
+          return new Date(b.dataset.createdAt) - new Date(a.dataset.createdAt);
+        case 'importance_desc':
+          return b.dataset.importance - a.dataset.importance;
+        case 'importance_asc':
+          return a.dataset.importance - b.dataset.importance;
+        case 'by_speaker':
+          return a.dataset.speaker.localeCompare(b.dataset.speaker);
+        default:
+          return 0;
+      }
+    });
+
+    sortedSuggestions.forEach(suggestion => this.containerTarget.appendChild(suggestion));
+  }
+
+  // Toggle action items only
+  toggleActionItems() {
+    const button = this.actionToggleTarget;
+    const isActive = button.classList.contains('active');
+    
+    if (isActive) {
+      // Deactivate: show all items
+      button.classList.remove('active');
+      button.classList.remove('btn-primary');
+      button.classList.add('btn-outline-light');
+      
+      this.containerTarget.querySelectorAll('.suggestion-card').forEach(card => {
+        card.style.display = '';
+      });
+    } else {
+      // Activate: show only action items
+      button.classList.add('active');
+      button.classList.remove('btn-outline-light');
+      button.classList.add('btn-primary');
+      
+      this.containerTarget.querySelectorAll('.suggestion-card').forEach(card => {
+        if (card.dataset.isActionItem === 'true') {
+          card.style.display = '';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+    
+    // Update suggestion count
+    this.updateSuggestionCount();
+  }
+
+  initializeModals() {
+    // Create modals dynamically
+    this.createTaskModal();
+    this.createFlagModal();
+  }
+
+  createTaskModal() {
+    const modalHtml = `
+      <div class="modal fade" id="assignTaskModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Assign Task</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="taskForm">
+                <div class="mb-3">
+                  <label class="form-label">Assignee</label>
+                  <input type="text" class="form-control" id="taskAssignee" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Task Description</label>
+                  <textarea class="form-control" id="taskDescription" rows="3" required></textarea>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-primary" onclick="window.submitTask()">Create Task</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    window.submitTask = this.submitTask.bind(this);
+  }
+
+  createFlagModal() {
+    const modalHtml = `
+      <div class="modal fade" id="flagModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Flag Unusual Behavior</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="flagForm">
+                <div class="mb-3">
+                  <label class="form-label">What's the issue?</label>
+                  <select class="form-select" id="flagType" required>
+                    <option value="">Select issue type...</option>
+                    <option value="misbehavior">Participant misbehavior</option>
+                    <option value="technical">Technical issue with analysis</option>
+                    <option value="transcript">Transcript loading issue</option>
+                    <option value="ai_error">AI analysis error</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Description</label>
+                  <textarea class="form-control" id="flagDescription" rows="3" required></textarea>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Your Name (optional)</label>
+                  <input type="text" class="form-control" id="flagReporter">
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-warning" onclick="window.submitFlag()">Submit Flag</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    window.submitFlag = this.submitFlag.bind(this);
+  }
+
+  assignTask() {
+    const modal = new bootstrap.Modal(document.getElementById('assignTaskModal'));
+    modal.show();
+  }
+
+  flagUnusual() {
+    const modal = new bootstrap.Modal(document.getElementById('flagModal'));
+    modal.show();
+  }
+
+  exportSummary() {
+    window.location.href = `/incidents/${this.incidentIdValue}/export`;
+  }
+
+  async submitTask() {
+    const assignee = document.getElementById('taskAssignee').value;
+    const description = document.getElementById('taskDescription').value;
+
+    try {
+      const response = await fetch(`/incidents/${this.incidentIdValue}/tasks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+          task: { assignee, description }
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        bootstrap.Modal.getInstance(document.getElementById('assignTaskModal')).hide();
+        document.getElementById('taskForm').reset();
+        alert('Task created successfully!');
+      } else {
+        alert('Error: ' + (data.errors || ['Unknown error']).join(', '));
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+      alert('Failed to create task. Please try again.');
+    }
+  }
+
+  async submitFlag() {
+    const flagType = document.getElementById('flagType').value;
+    const description = document.getElementById('flagDescription').value;
+    const reporter = document.getElementById('flagReporter').value || 'Anonymous';
+
+    try {
+      const response = await fetch(`/incidents/${this.incidentIdValue}/flags`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+        },
+        body: JSON.stringify({
+          flag: { flag_type: flagType, description, reporter }
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        bootstrap.Modal.getInstance(document.getElementById('flagModal')).hide();
+        document.getElementById('flagForm').reset();
+        alert('Flag submitted successfully!');
+      } else {
+        alert('Error: ' + (data.errors || ['Unknown error']).join(', '));
+      }
+    } catch (error) {
+      console.error('Error creating flag:', error);
+      alert('Failed to submit flag. Please try again.');
+    }
+  }
+
+  scrollToMessage(sequence) {
+    // If called from event, extract sequence from event
+    if (sequence && sequence.currentTarget) {
+      sequence = sequence.currentTarget.dataset.sequence;
+    }
+    
+    const messages = this.transcriptContainerTarget.querySelectorAll('.transcript-message');
+    
+    if (messages[sequence - 1]) {
+      messages[sequence - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      messages[sequence - 1].classList.add('bg-warning', 'bg-opacity-25');
+      setTimeout(() => {
+        messages[sequence - 1].classList.remove('bg-warning', 'bg-opacity-25');
+      }, 2000);
+    }
+  }
+  
+  clearTranscriptAndSuggestions() {
+    // Clear transcript
+    this.transcriptContainerTarget.innerHTML = `
+      <div class="text-center py-5 text-muted" id="transcript-placeholder">
+        <i class="bi bi-mic-mute display-4"></i>
+        <p class="small mt-3">Transcript will appear here during replay</p>
+      </div>
+    `;
+    
+    // Clear suggestions
+    this.containerTarget.innerHTML = `
+      <div id="no-suggestions" class="text-center py-5">
+        <i class="bi bi-robot display-1 text-muted"></i>
+        <h5 class="mt-3 text-muted">AI Analysis Running</h5>
+        <p class="text-muted">AI insights will appear here as the transcript is analyzed.</p>
+      </div>
+    `;
+    
+    // Clear summary  
+    if (this.summaryContainerTarget) {
+      this.summaryContainerTarget.innerHTML = `
+        <p class="text-muted small" id="summary-placeholder">
+          Summary will be generated after transcript analysis completes.
+        </p>
+      `;
     }
   }
 }

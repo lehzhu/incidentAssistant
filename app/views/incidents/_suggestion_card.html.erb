@@ -1,29 +1,29 @@
 <!-- app/views/incidents/_suggestion_card.html.erb -->
-<% 
-  category_configs = {
-    'action_item' => { color: 'primary', icon: 'check-square' },
-    'timeline_event' => { color: 'success', icon: 'clock-history' },
-    'root_cause' => { color: 'warning', icon: 'search' },
-    'missing_info' => { color: 'info', icon: 'info-circle' }
-  }
-  config = category_configs[suggestion.category] || { color: 'secondary', icon: 'question' }
-%>
-
-<div class="suggestion-card border-start border-<%= config[:color] %> border-3 bg-white m-3 p-3 rounded shadow-sm" 
+<div class="suggestion-card border-start border-<%= suggestion.critical? ? 'danger' : (suggestion.is_action_item ? 'primary' : 'secondary') %> border-3 bg-white m-3 p-3 rounded shadow-sm" 
      id="suggestion-<%= suggestion.id %>"
      data-suggestion-id="<%= suggestion.id %>"
-     data-category="<%= suggestion.category %>"
-     data-important="<%= suggestion.important? %>">
+     data-is-action-item="<%= suggestion.is_action_item %>"
+     data-importance="<%= suggestion.importance_score %>"
+     data-speaker="<%= suggestion.speaker %>">
   
   <div class="d-flex justify-content-between align-items-start mb-2">
     <div>
-      <span class="badge bg-<%= config[:color] %> bg-opacity-10 text-<%= config[:color] %> border border-<%= config[:color] %>">
-        <i class="bi bi-<%= config[:icon] %> me-1"></i>
-        <%= suggestion.category_display %>
-      </span>
-      <% if suggestion.important? %>
-        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger ms-1" title="Important">
+      <% if suggestion.is_action_item %>
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">
+          <i class="bi bi-check-square me-1"></i>
+          Action Item
+        </span>
+      <% end %>
+      <% if suggestion.critical? %>
+        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger ms-1" title="Critical">
           <i class="bi bi-exclamation-triangle-fill"></i>
+          Critical
+        </span>
+      <% end %>
+      <% if suggestion.speaker.present? %>
+        <span class="badge bg-light text-dark border ms-1">
+          <i class="bi bi-person me-1"></i>
+          <%= suggestion.speaker %>
         </span>
       <% end %>
     </div>
@@ -38,7 +38,7 @@
         </button>
         <button type="button" 
                 class="btn btn-outline-danger btn-sm"
-                onclick="updateSuggestion(<%= suggestion.id %>, 'dismissed')"
+                onclick="if(confirm('Are you sure you want to dismiss this suggestion?')) { updateSuggestion(<%= suggestion.id %>, 'dismissed') }"
                 title="Dismiss suggestion">
           <i class="bi bi-x"></i>
         </button>
@@ -52,14 +52,26 @@
   </div>
   
   <h6 class="fw-bold mb-2 text-dark"><%= suggestion.title %></h6>
-  <p class="text-muted small mb-0 lh-sm"><%= suggestion.description %></p>
+  <p class="text-muted small mb-2 lh-sm"><%= suggestion.description %></p>
   
-  <% if suggestion.confidence_score.present? %>
-    <div class="mt-2">
-      <small class="text-muted">
-        <i class="bi bi-speedometer me-1"></i>
-        Confidence: <%= suggestion.confidence_score %>%
-      </small>
+  <div class="d-flex justify-content-between align-items-center mt-2">
+    <div>
+      <% if suggestion.trigger_message_sequence.present? %>
+        <button class="btn btn-link btn-sm p-0 text-decoration-none" 
+                data-action="click->suggestions#scrollToMessage"
+                data-sequence="<%= suggestion.trigger_message_sequence %>">
+          <i class="bi bi-chat-quote me-1"></i>
+          View in transcript
+        </button>
+      <% end %>
     </div>
-  <% end %>
+    <div>
+      <% if suggestion.confidence_score.present? %>
+        <small class="text-muted">
+          <i class="bi bi-speedometer me-1"></i>
+          <%= suggestion.confidence_score %>%
+        </small>
+      <% end %>
+    </div>
+  </div>
 </div>

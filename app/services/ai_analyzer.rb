@@ -27,6 +27,9 @@ class AiAnalyzer
       return []
     end
     
+    Rails.logger.info "[AI_ANALYZER] Making PRODUCTION LLM call to Google Gemini API"
+    Rails.logger.info "[AI_ANALYZER] Analyzing #{messages.count} messages from sequence #{messages.first.sequence_number} to #{messages.last.sequence_number}"
+    
     prompt = build_analysis_prompt(messages)
     
     # Format prompt correctly for gemini-rb gem
@@ -160,7 +163,9 @@ class AiAnalyzer
     required_keys = %w[category title description]
     return false unless required_keys.all? { |key| suggestion[key].present? }
     
-    return false unless Suggestion::CATEGORIES.include?(suggestion['category'])
+    # Validate category is one of the expected values
+    valid_categories = %w[action_item timeline_event root_cause missing_info]
+    return false unless valid_categories.include?(suggestion['category'])
     
     true
   end
