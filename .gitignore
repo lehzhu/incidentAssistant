@@ -33,3 +33,6 @@
 
 # Ignore master key for decrypting credentials and more.
 /config/master.key
+redis_data_export.md
+REDIS_ISOLATION_GUIDE.md
+redis_data_export.json
