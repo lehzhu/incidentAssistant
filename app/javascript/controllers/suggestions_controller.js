@@ -316,7 +316,8 @@ export default class extends Controller {
 
   // Sort suggestions
   sortBy(event) {
-    const sortMethod = event.target.dataset.sort;
+    event.preventDefault();
+    const sortMethod = event.currentTarget.dataset.sort;
     let sortedSuggestions = Array.from(this.containerTarget.querySelectorAll('.suggestion-card'));
 
     sortedSuggestions.sort((a, b) => {
@@ -326,17 +327,34 @@ export default class extends Controller {
         case 'chronological_desc':
           return new Date(b.dataset.createdAt) - new Date(a.dataset.createdAt);
         case 'importance_desc':
-          return b.dataset.importance - a.dataset.importance;
+          return parseFloat(b.dataset.importance) - parseFloat(a.dataset.importance);
         case 'importance_asc':
-          return a.dataset.importance - b.dataset.importance;
+          return parseFloat(a.dataset.importance) - parseFloat(b.dataset.importance);
         case 'by_speaker':
-          return a.dataset.speaker.localeCompare(b.dataset.speaker);
+          const speakerA = a.dataset.speaker || '';
+          const speakerB = b.dataset.speaker || '';
+          return speakerA.localeCompare(speakerB);
         default:
           return 0;
       }
     });
 
+    // Clear container and re-append sorted cards
+    this.containerTarget.innerHTML = '';
     sortedSuggestions.forEach(suggestion => this.containerTarget.appendChild(suggestion));
+    
+    // Update the sort button text to show current sort
+    const sortButton = document.getElementById('sortMenuButton');
+    if (sortButton) {
+      const sortLabels = {
+        'chronological_asc': 'Oldest First',
+        'chronological_desc': 'Newest First',
+        'importance_desc': 'High Importance',
+        'importance_asc': 'Low Importance',
+        'by_speaker': 'By Person'
+      };
+      sortButton.innerHTML = `<i class="bi bi-sort-alpha-down"></i> ${sortLabels[sortMethod] || 'Sort'}`;
+    }
   }
 
   // Toggle action items only
@@ -530,10 +548,18 @@ export default class extends Controller {
     }
   }
 
-  scrollToMessage(sequence) {
-    // If called from event, extract sequence from event
-    if (sequence && sequence.currentTarget) {
-      sequence = sequence.currentTarget.dataset.sequence;
+  scrollToMessage(event) {
+    // Handle both event-based calls and direct function calls
+    let sequence;
+    if (event && event.currentTarget) {
+      // Called from Stimulus action
+      sequence = parseInt(event.currentTarget.dataset.sequence);
+    } else if (typeof event === 'number') {
+      // Called directly with sequence number
+      sequence = event;
+    } else {
+      console.error('Invalid sequence parameter:', event);
+      return;
     }
     
     const messages = this.transcriptContainerTarget.querySelectorAll('.transcript-message');

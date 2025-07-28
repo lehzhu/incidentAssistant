@@ -70,16 +70,15 @@
                   <i class="bi bi-sort-alpha-down"></i> Sort
                 </button>
                 <ul class="dropdown-menu" aria-labelledby="sortMenuButton">
-                  <li><a class="dropdown-item" href="#" data-action="click->suggestions#sortBy" data-sort="chronological_asc">
-                    Chronological (Oldest First)</a></li>
                   <li><a class="dropdown-item" href="#" data-action="click->suggestions#sortBy" data-sort="chronological_desc">
-                    Chronological (Newest First)</a></li>
+                    Newest First</a></li>
+                  <li><a class="dropdown-item" href="#" data-action="click->suggestions#sortBy" data-sort="chronological_asc">
+                    Oldest First</a></li>
+                  <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item" href="#" data-action="click->suggestions#sortBy" data-sort="importance_desc">
-                    Importance (High to Low)</a></li>
+                    High Importance First</a></li>
                   <li><a class="dropdown-item" href="#" data-action="click->suggestions#sortBy" data-sort="importance_asc">
-                    Importance (Low to High)</a></li>
-                  <li><a class="dropdown-item" href="#" data-action="click->suggestions#sortBy" data-sort="by_speaker">
-                    Person (Alphabetical)</a></li>
+                    Low Importance First</a></li>
                 </ul>
               </div>
               <button class="btn btn-outline-light btn-sm" data-action="click->suggestions#toggleActionItems" data-suggestions-target="actionToggle">

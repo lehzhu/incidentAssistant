@@ -4,7 +4,8 @@
      data-suggestion-id="<%= suggestion.id %>"
      data-is-action-item="<%= suggestion.is_action_item %>"
      data-importance="<%= suggestion.importance_score %>"
-     data-speaker="<%= suggestion.speaker %>">
+     data-speaker="<%= suggestion.speaker || '' %>"
+     data-created-at="<%= suggestion.created_at.iso8601 %>">
   
   <div class="d-flex justify-content-between align-items-start mb-2">
     <div>
