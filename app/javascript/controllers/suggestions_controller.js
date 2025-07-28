@@ -3,7 +3,8 @@ import { createConsumer } from "@rails/actioncable"
 
 export default class extends Controller {
   static targets = [
-    "container", "progressBar", "transcriptContainer", "transcriptCount", "suggestionCount", "replayButton"
+    "container", "progressBar", "transcriptContainer", "transcriptCount", "suggestionCount", "replayButton",
+    "actionToggle", "summaryContainer", "totalCount", "actionCount", "criticalCount"
   ]
   static values = { incidentId: Number }
 
@@ -142,31 +143,25 @@ export default class extends Controller {
   }
 
   createSuggestionHTML(suggestion) {
-    const categoryConfigs = {
-      'action_item': { color: 'primary', icon: 'check-square' },
-      'timeline_event': { color: 'success', icon: 'clock-history' },
-      'root_cause': { color: 'warning', icon: 'search' },
-      'missing_info': { color: 'info', icon: 'info-circle' }
-    }
-    
-    const config = categoryConfigs[suggestion.category] || { color: 'secondary', icon: 'question' }
-    const isImportant = suggestion.importance_score >= 70
+    const isCritical = suggestion.importance_score >= 90
+    const isActionItem = suggestion.is_action_item
+    const borderColor = isCritical ? 'danger' : (isActionItem ? 'primary' : 'secondary')
     
     return `
-      <div class="suggestion-card border-start border-${config.color} border-3 bg-white m-3 p-3 rounded shadow-sm" 
+      <div class="suggestion-card border-start border-${borderColor} border-3 bg-white m-3 p-3 rounded shadow-sm" 
            id="suggestion-${suggestion.id}"
            data-suggestion-id="${suggestion.id}"
-           data-category="${suggestion.category}"
-           data-important="${isImportant}"
+           data-is-action-item="${isActionItem}"
+           data-importance="${suggestion.importance_score}"
+           data-speaker="${suggestion.speaker || ''}"
+           data-created-at="${suggestion.created_at}"
            style="opacity: 0; transform: translateY(-20px);">
         
         <div class="d-flex justify-content-between align-items-start mb-2">
           <div>
-            <span class="badge bg-${config.color} bg-opacity-10 text-${config.color} border border-${config.color}">
-              <i class="bi bi-${config.icon} me-1"></i>
-              ${suggestion.category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-            </span>
-            ${isImportant ? '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger ms-1" title="Important"><i class="bi bi-exclamation-triangle-fill"></i></span>' : ''}
+            ${isActionItem ? '<span class="badge bg-primary bg-opacity-10 text-primary border border-primary"><i class="bi bi-check-square me-1"></i>Action Item</span>' : ''}
+            ${isCritical ? '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger ms-1" title="Critical"><i class="bi bi-exclamation-triangle-fill"></i> Critical</span>' : ''}
+            ${suggestion.speaker ? `<span class="badge bg-light text-dark border ms-1"><i class="bi bi-person me-1"></i>${suggestion.speaker}</span>` : ''}
           </div>
           
           <div class="btn-group btn-group-sm" role="group">
@@ -186,16 +181,25 @@ export default class extends Controller {
         </div>
         
         <h6 class="fw-bold mb-2 text-dark">${suggestion.title}</h6>
-        <p class="text-muted small mb-0 lh-sm">${suggestion.description}</p>
+        <p class="text-muted small mb-2 lh-sm">${suggestion.description}</p>
         
-        ${suggestion.confidence_score ? `
-          <div class="mt-2">
+        <div class="d-flex justify-content-between align-items-center mt-2">
+          <div>
+            ${suggestion.trigger_message_sequence ? `
+              <button class="btn btn-link btn-sm p-0 text-decoration-none" 
+                      onclick="window.scrollToMessage(${suggestion.trigger_message_sequence})">
+                <i class="bi bi-chat-quote me-1"></i>
+                View in transcript
+              </button>
+            ` : ''}
+          </div>
+          <div>
             <small class="text-muted">
               <i class="bi bi-speedometer me-1"></i>
-              Confidence: ${suggestion.confidence_score}%
+              ${suggestion.importance_score}%
             </small>
           </div>
-        ` : ''}
+        </div>
       </div>
     `
   }

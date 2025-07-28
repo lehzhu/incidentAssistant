@@ -53,7 +53,7 @@
       </div>
     </div>
 
-    <!-- Center Column: AI Insights -->
+    <!-- Center Column: AI Suggestions (Most Important) -->
     <div class="col-lg-6">
       <div class="card h-100">
         <div class="card-header bg-primary text-white">
@@ -63,28 +63,26 @@
               AI Insights
               <span class="badge bg-white text-primary ms-2" data-suggestions-target="suggestionCount"><%= @suggestions.count %></span>
             </h6>
-            <div class="d-flex gap-2">
-              <div class="dropdown">
-                <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button"
-                        id="sortMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                  <i class="bi bi-sort-alpha-down"></i> Sort
-                </button>
-                <ul class="dropdown-menu" aria-labelledby="sortMenuButton">
-                  <li><a class="dropdown-item" href="#" data-action="click->suggestions#sortBy" data-sort="chronological_asc">
-                    Chronological (Oldest First)</a></li>
-                  <li><a class="dropdown-item" href="#" data-action="click->suggestions#sortBy" data-sort="chronological_desc">
-                    Chronological (Newest First)</a></li>
-                  <li><a class="dropdown-item" href="#" data-action="click->suggestions#sortBy" data-sort="importance_desc">
-                    Importance (High to Low)</a></li>
-                  <li><a class="dropdown-item" href="#" data-action="click->suggestions#sortBy" data-sort="importance_asc">
-                    Importance (Low to High)</a></li>
-                  <li><a class="dropdown-item" href="#" data-action="click->suggestions#sortBy" data-sort="by_speaker">
-                    Person (Alphabetical)</a></li>
-                </ul>
-              </div>
-              <button class="btn btn-outline-light btn-sm" data-action="click->suggestions#toggleActionItems" data-suggestions-target="actionToggle">
-                <i class="bi bi-check-square"></i> Action Items Only
-              </button>
+            <div class="btn-group btn-group-sm" role="group">
+              <input type="radio" class="btn-check" name="filter" id="important" checked
+                     data-action="change->suggestions#applyFilter">
+              <label class="btn btn-outline-light" for="important">Important</label>
+              
+              <input type="radio" class="btn-check" name="filter" id="action_item"
+                     data-action="change->suggestions#applyFilter">
+              <label class="btn btn-outline-light" for="action_item">Actions</label>
+              
+              <input type="radio" class="btn-check" name="filter" id="timeline_event"
+                     data-action="change->suggestions#applyFilter">
+              <label class="btn btn-outline-light" for="timeline_event">Timeline</label>
+              
+              <input type="radio" class="btn-check" name="filter" id="root_cause"
+                     data-action="change->suggestions#applyFilter">
+              <label class="btn btn-outline-light" for="root_cause">Root Cause</label>
+              
+              <input type="radio" class="btn-check" name="filter" id="all"
+                     data-action="change->suggestions#applyFilter">
+              <label class="btn btn-outline-light" for="all">All</label>
             </div>
           </div>
         </div>
@@ -106,7 +104,7 @@
       </div>
     </div>
 
-    <!-- Right Column: Actions, Summary & Details -->
+    <!-- Right Column: Actions & Details -->
     <div class="col-lg-3">
       <!-- Quick Actions -->
       <div class="card mb-3">
@@ -128,21 +126,6 @@
               <i class="bi bi-download me-1"></i> Export Summary
             </button>
           </div>
-        </div>
-      </div>
-
-      <!-- Summary -->
-      <div class="card mb-3">
-        <div class="card-header bg-info text-white">
-          <h6 class="mb-0">
-            <i class="bi bi-file-text me-2"></i>
-            Summary
-          </h6>
-        </div>
-        <div class="card-body" data-suggestions-target="summaryContainer">
-          <p class="text-muted small" id="summary-placeholder">
-            Summary will be generated after transcript analysis completes.
-          </p>
         </div>
       </div>
 
@@ -175,29 +158,27 @@
         </div>
       </div>
 
-      <!-- Insight Statistics -->
-      <div class="card">
-        <div class="card-header bg-light">
-          <h6 class="mb-0">
-            <i class="bi bi-graph-up me-2"></i>
-            Insight Statistics
-          </h6>
-        </div>
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="small">Total Insights</span>
-            <span class="badge bg-secondary" data-suggestions-target="totalCount"><%= @incident.suggestions.count %></span>
+      <!-- Suggestion Stats -->
+      <% if @incident.suggestions.any? %>
+        <div class="card">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">
+              <i class="bi bi-graph-up me-2"></i>
+              Insight Statistics
+            </h6>
           </div>
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="small">Action Items</span>
-            <span class="badge bg-primary" data-suggestions-target="actionCount"><%= @incident.suggestions.action_items_only.count %></span>
-          </div>
-          <div class="d-flex justify-content-between align-items-center">
-            <span class="small text-danger">Critical Insights</span>
-            <span class="badge bg-danger" data-suggestions-target="criticalCount"><%= @incident.suggestions.critical.count %></span>
+          <div class="card-body">
+            <% Suggestion::CATEGORIES.each do |category| %>
+              <% count = @incident.suggestions.by_category(category).count %>
+              <% next if count.zero? %>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small"><%= category.humanize.titleize %></span>
+                <span class="badge bg-secondary"><%= count %></span>
+              </div>
+            <% end %>
           </div>
         </div>
-      </div>
+      <% end %>
     </div>
   </div>
 </div>
