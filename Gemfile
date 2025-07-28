@@ -18,6 +18,8 @@ gem "stimulus-rails"
 gem "jbuilder"
 # Use Redis adapter to run Action Cable in production
 gem "redis", ">= 4.0.1"
+# Redis namespacing for better isolation
+gem "redis-namespace"
 
 # Gemini AI integration
 gem "gemini-ai"
